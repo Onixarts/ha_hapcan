@@ -46,6 +46,9 @@ class HapcanDevice:
         self.entities = {}
         self.entities_registered = False
 
+        self._ready_entities = 0
+
+        
     @property
     def application_type_string(self):
         return "base device type"
@@ -71,6 +74,18 @@ class HapcanDevice:
     def _create_entities(self):
         pass
 
+    async def entity_ready(self, entity):
+        self._ready_entities += 1
+        all_entities_count = sum(len(lst) for lst in self.entities.values())
+        _LOGGER.debug("Entity #%s/%s ready for device %s", self._ready_entities, all_entities_count, self)
+
+        if self._ready_entities == all_entities_count:
+            _LOGGER.debug(
+                "All %s entities ready. Requesting status for device %s",
+                all_entities_count, self,
+            )
+            await self.request_status()
+
     @classmethod
     def from_existing(cls, old):
         new = cls(old.node, old.group, old.gateway)
@@ -85,6 +100,14 @@ class HapcanDevice:
         other.application_version = self.application_version
         other.firmware_version = self.firmware_version
         other.entities_registered = self.entities_registered
+
+
+    async def request_status(self):
+        """Send 0x109 status request to the module."""
+
+        frame = bytearray([ 0xAA, 0x10, 0x90, 0xF0, 0xF0, 0xFF, 0xFF, self.node, self.group, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xA5 ])
+        await self.gateway.send(frame)
+
 
     def supportsFrame0x117(self) -> bool:
         """Sprawdza, czy urządzenie wspiera ramkę 0x117 - pobieranie nazwy encji bez restartu urządzenia"""

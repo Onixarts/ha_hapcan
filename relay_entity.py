@@ -7,6 +7,7 @@ class RelayEntity(SwitchEntity):
     #_attr_icon = "mdi:toggle-switch-variant-off"
 
     def __init__(self, device, channel):
+        super().__init__()
         self._device = device
         self._channel = channel
 
@@ -42,6 +43,9 @@ class RelayEntity(SwitchEntity):
     def device_updated(self):
         """Wywoływane przez RelayDevice, gdy stan kanału się zmieni."""
         self.hass.loop.call_soon_threadsafe(self.async_write_ha_state)
+
+    async def async_added_to_hass(self):
+        await self._device.entity_ready(self)
 
     def __repr__(self):
         return (
