@@ -1,0 +1,117 @@
+from .const import HARDWARE_TYPE_TO_STRING_MAP
+
+import logging
+_LOGGER = logging.getLogger(__name__)
+
+class HapcanDevice:
+    """
+    Reprezentuje pojedynczy moduł HAPCAN.
+    """
+
+    # Lista urządzeń wspierających ramkę 0x117
+    frame0x117Support = [
+        [3, 1, 0, 0],  # 8 CHANNEL DIN RAIL BOX BUTTON
+        [3, 1, 2, 1],  # 6 CHANNEL BACK BOX TOUCH BUTTON
+        [3, 1, 3, 1],  # 14 CHANNEL BACK BOX BUTTON
+        [3, 2, 1, 0],  # 5A MONOSTABLE RELAY
+        [3, 2, 2, 0],  # 5A BISTABLE RELAY
+        [3, 2, 3, 0],  # 16A MONOSTABLE RELAY
+        [3, 2, 4, 3],  # 16A BISTABLE RELAY
+        [3, 2, 5, 0],  # 6A MONOSTABLE RELAY
+        [3, 5, 0, 3],  # INFRARED RECEIVER & TRANSMITTER
+        [3, 6, 0, 2],  # DIMMER RC
+        [3, 7, 0, 0],  # BLIND CONTROLLER for AC MOTORS
+        [3, 8, 0, 0],  # RGB LED CONTROLLER
+        [3, 9, 0, 0],  # 10 CHANNEL OPEN COLLECTOR
+    ]
+
+    def __init__(self, node, group, gateway):
+        self.id = f"{node:03d}_{group:03d}"
+        self.node = node
+        self.group = group
+        self.gateway = gateway
+        
+        self._desc_chunks = 0
+        self.description = ""
+        self.serial_number = 0
+
+        self.hardware_type_string = "unknown hardware"
+        
+        self.hardware_version = 0 # eg. 3
+        self.application_type = 0 # eg. 1 - button, 2 -relay
+        self.application_type_icon = "fa-microchip"
+        self.application_version = 0 # eg. 0 - button 8x din, 3 - 2 - 6 x touch button, 3 - 14 x button with LED
+        self.firmware_version = 0 # idk
+
+        self.entities = {}
+        self.entities_registered = False
+
+    @property
+    def application_type_string(self):
+        return "base device type"
+
+    @property
+    def hardware_type(self):
+        return self._hardware_type
+    
+    @hardware_type.setter
+    def hardware_type(self, value):
+        self._hardware_type = value
+        self.hardware_type_string = HARDWARE_TYPE_TO_STRING_MAP.get(value, "unknown device type (not supported)")
+
+    def create_entities(self):
+        _LOGGER.debug("HAPCAN: Device %s is creating base entities", self)
+        self.entities = {
+            "switch": []
+        }
+
+        self._create_entities()
+
+        
+    def _create_entities(self):
+        pass
+
+    @classmethod
+    def from_existing(cls, old):
+        new = cls(old.node, old.group, old.gateway)
+        old._copy_base_fields_to(new)
+        return new
+
+    def _copy_base_fields_to(self, other):
+        other.serial_number = self.serial_number
+        other.hardware_type = self.hardware_type
+        other.hardware_version = self.hardware_version
+        other.application_type = self.application_type
+        other.application_version = self.application_version
+        other.firmware_version = self.firmware_version
+        other.entities_registered = self.entities_registered
+
+    def supportsFrame0x117(self) -> bool:
+        """Sprawdza, czy urządzenie wspiera ramkę 0x117 - pobieranie nazwy encji bez restartu urządzenia"""
+        for minimal in self.frame0x117Support:
+            if (
+                self.hardware_version == minimal[0]
+                and self.application_type == minimal[1]
+                and self.application_version == minimal[2]
+                and self.firmware_version >= minimal[3]
+            ):
+                return True
+        return False
+
+    def is_complete(self) -> bool:
+        return (
+            self.serial_number is not None and
+            self.hardware_type is not None and
+            self.application_type is not None and
+            self.application_version is not None and
+            self.firmware_version is not None and
+            self._desc_chunks == 1
+        )
+
+    def __repr__(self):
+        desc = f' "{self.description}"' if self.description else ""
+        return (
+            f"<{self.__class__.__name__} {self.hardware_version}.{self.application_type}.{self.application_version}.{self.firmware_version} "
+            f"{self.hardware_type_string} {self.application_type_string} ({self.node},{self.group}){desc}, "
+            f"entities={sum(len(lst) for lst in self.entities.values())}>"
+        )
