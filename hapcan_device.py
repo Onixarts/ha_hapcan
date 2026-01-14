@@ -1,5 +1,9 @@
 from .const import HARDWARE_TYPE_TO_STRING_MAP
 
+from datetime import datetime, timezone
+from .last_seen_entity import HapcanLastSeenSensor
+
+
 import logging
 _LOGGER = logging.getLogger(__name__)
 
@@ -48,6 +52,8 @@ class HapcanDevice:
 
         self._ready_entities = 0
 
+        self.last_seen = None
+
         
     @property
     def application_type_string(self):
@@ -62,12 +68,26 @@ class HapcanDevice:
         self._hardware_type = value
         self.hardware_type_string = HARDWARE_TYPE_TO_STRING_MAP.get(value, "unknown device type (not supported)")
 
+    @property
+    def device_info(self):
+        return {
+            "identifiers": {("hapcan", f"{self.id}")},
+            "manufacturer": "HAPCAN"
+        }
+
+
     def create_entities(self):
         _LOGGER.debug("HAPCAN: Device %s is creating base entities", self)
         self.entities = {
-            "switch": []
+            "switch": [],
+            "diagnostic": []
         }
 
+        # create common base entities
+        last_seen = HapcanLastSeenSensor(self)
+        self.entities["diagnostic"].append(last_seen)
+
+        # create device specific entities
         self._create_entities()
 
         
@@ -100,6 +120,7 @@ class HapcanDevice:
         other.application_version = self.application_version
         other.firmware_version = self.firmware_version
         other.entities_registered = self.entities_registered
+        other.last_seen = self.last_seen
 
 
     async def request_status(self):
@@ -130,6 +151,14 @@ class HapcanDevice:
             self.firmware_version is not None and
             self._desc_chunks == 1
         )
+
+    def update_last_seen(self):
+        self.last_seen = datetime.now(timezone.utc)
+        
+        for entity in self.entities.get("diagnostic", []):
+            entity.device_updated()
+
+
 
     def __repr__(self):
         desc = f' "{self.description}"' if self.description else ""

@@ -95,6 +95,9 @@ class HapcanGateway:
                             signal = f"hapcan_frame_{msg.frame_type:03x}"
                             async_dispatcher_send(self._hass, signal, msg)
 
+                            device = self._hass.data[DOMAIN][self.entry_id]["devices"].get((msg.node, msg.group))
+                            if device:
+                                device.update_last_seen()
                             #device = self._hass.data[DOMAIN][self.entry_id]["devices"].get((msg.node, msg.group)) #can be None
                             #_LOGGER.debug("Device from cache: %s", device)
                             #self.dispatcher.dispatch(msg, device)

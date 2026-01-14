@@ -17,11 +17,7 @@ class RelayEntity(SwitchEntity):
 
     @property
     def device_info(self):
-        return {
-            "identifiers": {("hapcan", f"{self._device.id}")},
-            "manufacturer": "HAPCAN"
-        }
-
+        return self._device.device_info
 
     @property
     def is_on(self):
