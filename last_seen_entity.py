@@ -1,10 +1,11 @@
-from homeassistant.components.sensor import SensorEntity
+from homeassistant.components.sensor import SensorEntity, SensorDeviceClass
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.core import callback
 
-class HapcanLastSeenSensor(SensorEntity):
+class LastSeenSensorEntity(SensorEntity):
     _attr_has_entity_name = True
     _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
     _attr_icon = "mdi:clock-time-eight-outline"
 
     def __init__(self, device):

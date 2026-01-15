@@ -1,7 +1,11 @@
 from .const import HARDWARE_TYPE_TO_STRING_MAP
 
 from datetime import datetime, timezone
-from .last_seen_entity import HapcanLastSeenSensor
+from .last_seen_entity import LastSeenSensorEntity
+from .bus_voltage_entity import BusVoltageSensorEntity
+from .cpu_voltage_entity import CpuVoltageSensorEntity
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
+
 
 
 import logging
@@ -52,8 +56,28 @@ class HapcanDevice:
 
         self._ready_entities = 0
 
+        # DIAGNOSTIC DATA
         self.last_seen = None
+        self.bus_voltage = None
+        self.cpu_voltage = None
 
+        # DIAGNOSTIC ENTITES
+        self._last_seen_entity = None
+        self._cpu_voltage_entity = None
+        self._bus_voltage_entity = None
+
+        # HAPCAN MESSAGE SUBSCRIPTION 
+        self._unsub_10C = async_dispatcher_connect( gateway._hass, "hapcan_frame_10c", self._handle_voltage_frame_10C )
+
+
+    async def async_will_remove_from_hass(self):
+        if self._unsub_10C:
+            self._unsub_10C()        
+
+    def cleanup(self):
+        if self._unsub_10C:
+            self._unsub_10C()
+            self._unsub_10C = None
         
     @property
     def application_type_string(self):
@@ -84,8 +108,14 @@ class HapcanDevice:
         }
 
         # create common base entities
-        last_seen = HapcanLastSeenSensor(self)
-        self.entities["diagnostic"].append(last_seen)
+
+        self._last_seen_entity = LastSeenSensorEntity(self)
+        self._bus_voltage_entity = BusVoltageSensorEntity(self)
+        self._cpu_voltage_entity = CpuVoltageSensorEntity(self)
+        
+        self.entities["diagnostic"].append(self._last_seen_entity)
+        self.entities["diagnostic"].append(self._bus_voltage_entity)
+        self.entities["diagnostic"].append(self._cpu_voltage_entity)
 
         # create device specific entities
         self._create_entities()
@@ -105,6 +135,31 @@ class HapcanDevice:
                 all_entities_count, self,
             )
             await self.request_status()
+
+    # ---------------------------------------------------------
+    #  Interpretacja ramek informacyjnych
+    # ---------------------------------------------------------
+
+    def _handle_voltage_frame_10C(self, msg):
+        
+        node = msg.node
+        group = msg.group
+        frame = msg.frame
+
+        if msg.node != self.node or msg.group != self.group:
+            return
+
+        _LOGGER.debug("Processing 0x10C frame with voltage response for device %s", self)
+
+        self.bus_voltage = ( frame[5]*256 + frame[6] ) * 30.5 / 65472
+        self.cpu_voltage = ( frame[7]*256 + frame[8] ) * 5 / 65472
+
+        if self._bus_voltage_entity:
+            self._bus_voltage_entity.device_updated()
+
+        if self._cpu_voltage_entity:
+            self._cpu_voltage_entity.device_updated()
+
 
     @classmethod
     def from_existing(cls, old):
@@ -127,6 +182,12 @@ class HapcanDevice:
         """Send 0x109 status request to the module."""
 
         frame = bytearray([ 0xAA, 0x10, 0x90, 0xF0, 0xF0, 0xFF, 0xFF, self.node, self.group, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xA5 ])
+        await self.gateway.send(frame)
+
+
+    async def request_voltage(self):
+        _LOGGER.debug("Requesting voltage for device %s", self)
+        frame = bytearray([ 0xAA, 0x10, 0xC0, 0xF0, 0xF0, 0xFF, 0xFF, self.node, self.group, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xA5 ])
         await self.gateway.send(frame)
 
 

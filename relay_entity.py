@@ -1,9 +1,10 @@
-from homeassistant.components.switch import SwitchEntity
+from homeassistant.components.switch import SwitchEntity, SwitchDeviceClass
 from homeassistant.core import callback
 
 class RelayEntity(SwitchEntity):
 
     _attr_has_entity_name = True
+    _attr_device_class = SwitchDeviceClass.SWITCH
     #_attr_icon = "mdi:toggle-switch-variant-off"
 
     def __init__(self, device, channel):

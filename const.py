@@ -1,4 +1,5 @@
 DOMAIN = "hapcan"
+DEFAULT_DIAGNOSTIC_SCAN_INTERVAL_MINUTES = 60
 
 EVENT_DEVICE_FOUND = "hapcan.device_found"
 EVENT_DEVICE_UPDATED = "hapcan.device_updated"

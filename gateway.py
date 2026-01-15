@@ -8,8 +8,9 @@ from .hapcan_device import HapcanDevice
 from . import const
 from .const import DOMAIN
 from .relay_device import RelayDevice
-from homeassistant.helpers.dispatcher import async_dispatcher_send
-from homeassistant.helpers.dispatcher import async_dispatcher_connect
+from homeassistant.helpers.dispatcher import async_dispatcher_send, async_dispatcher_connect
+from homeassistant.helpers.event import async_track_time_interval
+from datetime import timedelta
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -26,10 +27,10 @@ class HapcanGateway:
     """Gateway TCP dla HAPCAN z odbiorem ramek 13/15 bajtów."""
     SENDING_LIMIT = 0.005
 
-    def __init__(self, hass: HomeAssistant, host: str, port: int, entry_id):
+    def __init__(self, hass: HomeAssistant, entry_id, options):
         self._hass = hass
-        self._host = host
-        self._port = port
+        self._host = options["host"]
+        self._port = options["port"]
         self.entry_id = entry_id
 
         self._reader = None
@@ -46,6 +47,10 @@ class HapcanGateway:
         async_dispatcher_connect(hass, "hapcan_frame_103", self._on_response_device_id_from_group_0x103)
         async_dispatcher_connect(hass, "hapcan_frame_106", self._on_firmware_response_0x106)
         async_dispatcher_connect(hass, "hapcan_frame_10e", self._on_description_response_0x10E)
+
+        if options["diagnostic_scan_interval_minutes"] > 0:
+            async_track_time_interval( hass, self._poll_voltage, timedelta(minutes=options["diagnostic_scan_interval_minutes"]))
+
 
     async def connect(self):
         """Nawiązanie połączenia TCP."""
@@ -225,6 +230,15 @@ class HapcanGateway:
         self._update_device(device)
 
 
+    async def _poll_voltage(self, now):
+        _LOGGER.debug("Pooling voltage from devices")
+        devices = self._hass.data[DOMAIN][self.entry_id]["devices"]
+        for device in devices.values():
+            try:
+                await device.request_voltage()
+            except Exception as e:
+                _LOGGER.error("Voltage poll failed for %s: %s", device, e)
+
 #---------------------------------------------------------------------------------------
 # HA DEVICE AND ENTITIES MANAGEMENT
 #---------------------------------------------------------------------------------------
@@ -252,17 +266,13 @@ class HapcanGateway:
             device_class = DEVICE_CLASS_REGISTRY.get(device.application_type, None)
             
             if device_class:
+                device.cleanup()
                 new_device = device_class.from_existing(device)
                 self._hass.data[DOMAIN][self.entry_id]["devices"][(node, group)] = new_device
                 device = new_device
                 _LOGGER.debug("Device class changed: %s", device )
             else:
                 _LOGGER.warning("Updating device (%s). Device is not supported.", device)
-
-
-        #devices = hass.data[DOMAIN][entry.entry_id]["devices"]
-        #for key, dev in devices.items():
-        #   _LOGGER.info(f"Device {key}: {dev}\n")
 
         if device.is_complete():
             #self._register_device_in_ha(device)

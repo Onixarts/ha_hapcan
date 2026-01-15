@@ -12,7 +12,7 @@ from homeassistant.config_entries import ConfigEntry
 
 
 from .gateway import HapcanGateway
-from .const import DOMAIN
+from .const import DOMAIN, DEFAULT_DIAGNOSTIC_SCAN_INTERVAL_MINUTES
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -24,8 +24,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     host = entry.data["host"]
     port = entry.data["port"]
-
-    gateway = HapcanGateway(hass, host, port, entry.entry_id)
+    diagnostic_scan_interval_minutes = entry.options.get(
+        "diagnostic_scan_interval_minutes",
+        entry.data.get("diagnostic_scan_interval_minutes", DEFAULT_DIAGNOSTIC_SCAN_INTERVAL_MINUTES)
+    )
+    
+    gateway = HapcanGateway(hass, entry.entry_id, options={
+            "host": host,
+            "port": port,
+            "diagnostic_scan_interval_minutes": diagnostic_scan_interval_minutes
+        })
 
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN]["gateway"] = gateway
@@ -33,7 +41,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         "gateway": gateway,
         "devices": {},
     }
-
+    
 
     #-----------------------------------------------------------------------------------
     # EVENT HANDLERS
