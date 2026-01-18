@@ -25,8 +25,7 @@ class HapcanConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 data={
                     "host": user_input["host"],
                     "port": user_input["port"],
-                    "diagnostic_scan_interval_minutes": DEFAULT_DIAGNOSTIC_SCAN_INTERVAL_MINUTES,  
-
+                    "diagnostic_scan_interval_minutes": DEFAULT_DIAGNOSTIC_SCAN_INTERVAL_MINUTES,
                 },
             )
 
@@ -56,9 +55,19 @@ class HapcanOptionsFlow(config_entries.OptionsFlow):
     def __init__(self, config_entry):
         self._config_entry = config_entry
 
+    # --- MENU GŁÓWNE ---
     async def async_step_init(self, user_input=None):
+        return self.async_show_menu(
+            step_id="init",
+            menu_options={
+                "edit": "Properties",
+                "scan": "Scan Hapcan bus",
+            }
+        )
+
+    # --- EDYCJA OPCJI ---
+    async def async_step_edit(self, user_input=None):
         if user_input is not None:
-            # zapisujemy zmienione wartości w options
             return self.async_create_entry(
                 title="",
                 data={
@@ -68,7 +77,6 @@ class HapcanOptionsFlow(config_entries.OptionsFlow):
                 },
             )
 
-        # aktualne wartości (options > data > default)
         current_host = self.config_entry.options.get(
             "host", self.config_entry.data.get("host", "192.168.0.100")
         )
@@ -77,17 +85,33 @@ class HapcanOptionsFlow(config_entries.OptionsFlow):
         )
         current_interval = self.config_entry.options.get(
             "diagnostic_scan_interval_minutes",
-            self.config_entry.data.get("diagnostic_scan_interval_minutes", DEFAULT_DIAGNOSTIC_SCAN_INTERVAL_MINUTES)
+            self.config_entry.data.get(
+                "diagnostic_scan_interval_minutes",
+                DEFAULT_DIAGNOSTIC_SCAN_INTERVAL_MINUTES
+            )
         )
 
         schema = vol.Schema({
             vol.Required("host", default=current_host): str,
             vol.Required("port", default=current_port): int,
-            vol.Required("diagnostic_scan_interval_minutes", default=current_interval): vol.All(
-                vol.Coerce(int),
-                vol.Range(min=0, max=1440)
-            ),
+            vol.Required(
+                "diagnostic_scan_interval_minutes",
+                default=current_interval
+            ): vol.All(vol.Coerce(int), vol.Range(min=0, max=1440)),
         })
 
-        return self.async_show_form(step_id="init", data_schema=schema)
+        return self.async_show_form(step_id="edit", data_schema=schema)
 
+    # --- RĘCZNE SKANOWANIE MAGISTRALI ---
+    async def async_step_scan(self, user_input=None):
+        gateway = self.hass.data[DOMAIN][self.config_entry.entry_id]["gateway"]
+        await gateway.scan_network()
+
+        return self.async_show_menu(
+            step_id="init",
+            menu_options={
+                "edit": "Properties",
+                "scan": "Scan Hapcan bus",
+            },
+            description_placeholders={"msg": "Skanowanie magistrali zakończone."}
+        )

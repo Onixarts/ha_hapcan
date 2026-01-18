@@ -60,22 +60,22 @@ class HapcanGateway:
                 self._host, self._port
             )
             self.connected = True
-            _LOGGER.info("HAPCAN: Połączono z %s:%s", self._host, self._port)
+            _LOGGER.info("HAPCAN connected to %s:%s", self._host, self._port)
 
             asyncio.create_task(self._read_loop())
             asyncio.create_task(self.scan_network())
 
         except Exception as e:
-            _LOGGER.error("HAPCAN: Błąd połączenia: %s", e)
+            _LOGGER.error("Connection error: %s", e)
             self.connected = False
 
     async def _read_loop(self):
-        """Odbiór ramek bajt po bajcie (jak w Twoim Node-RED)."""
+        
         while self.connected:
             try:
                 data = await self._reader.read(64)
                 if not data:
-                    _LOGGER.error("HAPCAN: Rozłączono")
+                    _LOGGER.error("Disconnected")
                     self.connected = False
                     break
 
@@ -96,19 +96,16 @@ class HapcanGateway:
                     if self._index == 14:
                         if byte == 0xA5:
                             msg = HapcanMessage(self._incoming[:15])
-                            _LOGGER.debug("HAPCAN << %s", msg)
+                            _LOGGER.debug("RECV << %s", msg)
                             signal = f"hapcan_frame_{msg.frame_type:03x}"
                             async_dispatcher_send(self._hass, signal, msg)
 
                             device = self._hass.data[DOMAIN][self.entry_id]["devices"].get((msg.node, msg.group))
                             if device:
                                 device.update_last_seen()
-                            #device = self._hass.data[DOMAIN][self.entry_id]["devices"].get((msg.node, msg.group)) #can be None
-                            #_LOGGER.debug("Device from cache: %s", device)
-                            #self.dispatcher.dispatch(msg, device)
                         else:
                             _LOGGER.warning(
-                                "HAPCAN: Niepoprawna ramka: %s", self._incoming[:self._index+1].hex()
+                                "Unknown frame received: %s", self._incoming[:self._index+1].hex()
                             )
                         self._reset_buffer()
                         continue
@@ -116,7 +113,7 @@ class HapcanGateway:
                     self._index += 1
 
             except Exception as e:
-                _LOGGER.error("HAPCAN: Błąd odbioru: %s", e)
+                _LOGGER.error("Receiving error: %s", e)
                 self.connected = False
                 break
 
@@ -130,30 +127,32 @@ class HapcanGateway:
     # ----------------------------------------------------------------------------------------------
 
     async def scan_network(self):
-        """
-        Skanuje wszystkie grupy 1–255 wysyłając ramkę 0x103.
-        """
+        _LOGGER.debug("HAPCAN BUS SCANNING...")
 
-        for group in range(1, 2):
+        for group in range(1, 10):
             frame = bytearray([0xAA, 0x10, 0x30, 0x00, 0x00, 0xFF, 0xFF, 0x00, group, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xA5])
 
+            _LOGGER.debug("Scanning group %s ------------------------------------------", group)
             await self.send(frame)
 
             # mały odstęp, żeby nie zalać magistrali
-            await asyncio.sleep(3.00)
+            await asyncio.sleep(2.0)
+
+
 
     def _on_response_device_id_from_group_0x103(self, msg):
         node = msg.node
         group = msg.group
         frame = msg.frame
 
-        _LOGGER.debug("0x103 frame handler: searching cache for (%s, %s)", node, group)
+        _LOGGER.debug("Device id response (0x103) for (%s, %s)", node, group)
+        _LOGGER.debug(" (%s, %s): searching devices list...", node, group)
         device = self._hass.data[DOMAIN][self.entry_id]["devices"].get((msg.node, msg.group))
 
         # create device if is None
         if device is None:
-            _LOGGER.debug("0x103 frame handler: Device (%s, %s) not found in cache", node, group)
-            _LOGGER.debug("0x103 frame handler: Creating HapcanDevice for (%s, %s) ", node, group)
+            _LOGGER.debug(" (%s, %s): not found, creating <HapcanDevice>", node, group)
+
             self._hass.data[DOMAIN][self.entry_id]["devices"][(node, group)] = HapcanDevice(node, group, self)
             device = self._hass.data[DOMAIN][self.entry_id]["devices"][(node, group)]
 
@@ -162,16 +161,15 @@ class HapcanGateway:
 
             device.hardware_type = (frame[5] << 8) | frame[6]
 
-            _LOGGER.debug("0x103 frame handler: Device (%s) created in cache", device)
-            self._device_discovered(device)
+            _LOGGER.debug(" (%s, %s): device created in list %s", node, group, device)
         else:
-            _LOGGER.debug("0x103 frame handler: Device %s exists", device)
+            _LOGGER.debug(" (%s, %s): found %s", node, group, device)
 
         self.request_firmware(node, group)
 
 
     def request_firmware(self, node, group):
-        _LOGGER.debug("Requesting (%s, %s) for firmware", node, group)
+        _LOGGER.debug("Requesting firmware from (%s, %s)", node, group)
         frame = bytes([ 0xAA, 0x10, 0x60, 0x00, 0x00, 0xFF, 0xFF, node, group, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xA5 ])
         
         self._hass.loop.call_soon_threadsafe(
@@ -181,11 +179,11 @@ class HapcanGateway:
         
 
     def _on_firmware_response_0x106(self, msg):
-        _LOGGER.debug("0x106 frame handler for device (%s, %s)", msg.node, msg.group)
+        _LOGGER.debug("Firmware response (0x106) for (%s, %s)", msg.node, msg.group)
         device = self._hass.data[DOMAIN][self.entry_id]["devices"].get((msg.node, msg.group))
         if device is None:
-            _LOGGER.error(f"Updating device failed. Device not found in device list.")
-            return  # nie znamy urządzenia
+            _LOGGER.error(" (%s, %s) not found in device list", msg.node, msg.group)
+            return
         frame = msg.frame
 
         device.hardware_version = frame[7]
@@ -193,14 +191,14 @@ class HapcanGateway:
         device.application_version = frame[9]
         device.firmware_version = frame[10]
 
-        _LOGGER.debug("0x106 frame handler: Device %s updated from device firmware response", device)
+        _LOGGER.debug(" (%s, %s): device firmware updated %s", msg.node, msg.group, device)
         self._update_device(device)
 
         self.request_description(msg.node, msg.group)
 
 
     def request_description(self, node, group):
-        _LOGGER.debug("Requesting (%s, %s) for description", node, group)
+        _LOGGER.debug("Requesting description from (%s, %s)", node, group)
         frame = bytes([ 0xAA, 0x10, 0xE0, 0x00, 0x00, 0xFF, 0xFF, node, group, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xA5])
 
         self._hass.loop.call_soon_threadsafe(
@@ -210,22 +208,26 @@ class HapcanGateway:
 
 
     def _on_description_response_0x10E(self, msg):
-        _LOGGER.debug("0x10E frame handler for device (%s, %s)", msg.node, msg.group)
+        _LOGGER.debug("Description response for (%s, %s)", msg.node, msg.group)
         device = self._hass.data[DOMAIN][self.entry_id]["devices"].get((msg.node, msg.group))
         if device is None:
-            _LOGGER.error("Description update failed. Device not found.")
+            _LOGGER.error(" (%s, %s) not found in device list", msg.node, msg.group)
             return
 
         frame = msg.frame
         chunk_bytes = bytes(frame[5:13])
         chunk = chunk_bytes.split(b"\x00", 1)[0].decode("ascii", errors="ignore")
 
+        _LOGGER.debug(" (%s, %s): description chunk received: '%s'", msg.node, msg.group, chunk)
+
         if device._desc_chunks == 0:
             device.description = chunk
             device._desc_chunks = 1
+            _LOGGER.debug(" (%s, %s): description updated 1/2", msg.node, msg.group)
             return
 
         device.description += chunk
+        _LOGGER.debug(" (%s, %s): description updated 2/2", msg.node, msg.group)
 
         self._update_device(device)
 
@@ -236,16 +238,13 @@ class HapcanGateway:
         for device in devices.values():
             try:
                 await device.request_voltage()
+                await asyncio.sleep(0.02)
             except Exception as e:
-                _LOGGER.error("Voltage poll failed for %s: %s", device, e)
+                _LOGGER.error(" Voltage poll failed for device %s", device, e)
 
 #---------------------------------------------------------------------------------------
 # HA DEVICE AND ENTITIES MANAGEMENT
 #---------------------------------------------------------------------------------------
-
-    def _device_discovered(self, device):
-        _LOGGER.debug("Device (%s, %s) discovered on Hapcan bus", device.node, device.group)
-
 
     def _update_device(self, device):
         node = device.node
@@ -254,15 +253,12 @@ class HapcanGateway:
         _LOGGER.debug("Updating device: %s", device )
         
         if not device:
-            _LOGGER.error("Updating device failed. Device is None.")
+            _LOGGER.error(" Updating device failed. Device is None.")
             return
         
-
-        #device = hass.data[DOMAIN][entry.entry_id]["devices"][(node, group)]
-
         # try changing the device class when it is base HapcanDevice class
         if type(device) is HapcanDevice:
-            _LOGGER.debug("Updating device. Changing class for (%s, %s)", node, group )
+            _LOGGER.debug(" Changing device class: %s", device )
             device_class = DEVICE_CLASS_REGISTRY.get(device.application_type, None)
             
             if device_class:
@@ -270,14 +266,14 @@ class HapcanGateway:
                 new_device = device_class.from_existing(device)
                 self._hass.data[DOMAIN][self.entry_id]["devices"][(node, group)] = new_device
                 device = new_device
-                _LOGGER.debug("Device class changed: %s", device )
+                _LOGGER.debug(" Device class changed: %s", device )
             else:
-                _LOGGER.warning("Updating device (%s). Device is not supported.", device)
+                _LOGGER.warning(" Device is not supported %s", device)
 
         if device.is_complete():
             #self._register_device_in_ha(device)
 
-            _LOGGER.debug("Notify registration")
+            _LOGGER.debug(" Hapcan device ready: %s", device)
             self._hass.loop.call_soon_threadsafe(
                 async_dispatcher_send,
                 self._hass,
@@ -285,7 +281,7 @@ class HapcanGateway:
                 device
             )
         else:
-            _LOGGER.debug("Updating device. Device (%s) not complete for registration", device )
+            _LOGGER.debug(" Device info not complete yet (%s)", device )
             
 
 #---------------------------------------------------------------------------------------
@@ -306,12 +302,11 @@ class HapcanGateway:
             payload[11] = checksum
 
         if self._writer:
-            _LOGGER.debug("HAPCAN >> %s", HapcanMessage(payload))
+            _LOGGER.debug("SEND >> %s", HapcanMessage(payload))
             self._writer.write(payload)
 
-    async def _sending_loop(self):
-        """Wysyła ramki z kolejki co SENDING_LIMIT sekund."""
 
+    async def _sending_loop(self):
         try:
             while self._sending_buffer:
                 payload = self._sending_buffer.pop(0)
@@ -322,16 +317,15 @@ class HapcanGateway:
             # koniec wysyłania
             self._sending_task = None
 
+
     async def send(self, payload: bytes):
-        """Dodaje ramkę do kolejki wysyłania."""
 
         if not self.connected:
-            _LOGGER.error("HAPCAN: próba wysłania bez połączenia")
+            _LOGGER.error("HAPCAN not connected")
             return
 
         # zamieniamy na bytearray, bo będziemy modyfikować checksum
         self._sending_buffer.append(bytearray(payload))
 
-        # jeśli nie ma aktywnego zadania wysyłania → startujemy
         if self._sending_task is None:
             self._sending_task = asyncio.create_task(self._sending_loop())

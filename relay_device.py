@@ -39,13 +39,12 @@ class RelayDevice(HapcanDevice):
         return RELAY_APPLICATION_VERSION.get(self.application_version, "Unknown relay")
 
     def _create_entities(self):
-        _LOGGER.debug("HAPCAN: Device %s is creating specific entities", self)
+        _LOGGER.debug("Creating specific entities for device %s", self)
 
-        #TODO: zależnie od rodzaju urządzenia tworzymy odpowiednie encje
-        
         for channel in range(1, 7):
             self.entities["switch"].append(RelayEntity(self, channel))
         
+        _LOGGER.debug(" specific entities created for device %s", self)
 
     def notify_entities(self, channel):
         try:

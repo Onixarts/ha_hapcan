@@ -48,7 +48,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     #-----------------------------------------------------------------------------------
 
     async def _on_device_ready(device):
-        _LOGGER.debug("Registering device (%s)", device )
+        _LOGGER.debug("Registering device %s", device )
         device_registry = dr.async_get(hass)
 
         device_registry.async_get_or_create(

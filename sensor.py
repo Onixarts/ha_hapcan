@@ -28,16 +28,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         entities = device.entities.get("diagnostic", [])
 
         if entities:
-            _LOGGER.debug("Entity list:")
+            _LOGGER.debug(" Entity list:")
             for ent in entities:
-                _LOGGER.debug("%s", ent)
+                _LOGGER.debug("  %s", ent)
 
-            _LOGGER.debug("Registering %s sensor entities", len(entities))
             async_add_entities(entities)
-            _LOGGER.debug("%s sensor entities registered.", len(entities))
+            _LOGGER.debug(" %s sensor entities registered", len(entities))
 
         else:
-            _LOGGER.debug("No SENSOR entities for this device. Registration skipped.")
+            _LOGGER.debug(" No SENSOR entities for this device. Registration skipped.")
 
     # Podpinamy się pod ten sam dispatcher co switch.py,
     # ale każda platforma dostaje swoje encje.

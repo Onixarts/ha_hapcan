@@ -101,7 +101,7 @@ class HapcanDevice:
 
 
     def create_entities(self):
-        _LOGGER.debug("HAPCAN: Device %s is creating base entities", self)
+        _LOGGER.debug("Creating base entities for device %s", self)
         self.entities = {
             "switch": [],
             "diagnostic": []
@@ -117,6 +117,8 @@ class HapcanDevice:
         self.entities["diagnostic"].append(self._bus_voltage_entity)
         self.entities["diagnostic"].append(self._cpu_voltage_entity)
 
+        _LOGGER.debug(" base entities created for device %s", self)
+
         # create device specific entities
         self._create_entities()
 
@@ -127,13 +129,10 @@ class HapcanDevice:
     async def entity_ready(self, entity):
         self._ready_entities += 1
         all_entities_count = sum(len(lst) for lst in self.entities.values())
-        _LOGGER.debug("Entity #%s/%s ready for device %s", self._ready_entities, all_entities_count, self)
+        _LOGGER.debug("Entity %s/%s registered", self._ready_entities, all_entities_count)
 
         if self._ready_entities == all_entities_count:
-            _LOGGER.debug(
-                "All %s entities ready. Requesting status for device %s",
-                all_entities_count, self,
-            )
+            _LOGGER.debug( "All %s entities ready for device %s", all_entities_count, self)
             await self.request_status()
 
     # ---------------------------------------------------------
@@ -180,6 +179,7 @@ class HapcanDevice:
 
     async def request_status(self):
         """Send 0x109 status request to the module."""
+        _LOGGER.debug( "Requesting status for device %s", self)
 
         frame = bytearray([ 0xAA, 0x10, 0x90, 0xF0, 0xF0, 0xFF, 0xFF, self.node, self.group, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xA5 ])
         await self.gateway.send(frame)
