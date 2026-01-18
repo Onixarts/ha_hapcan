@@ -6,6 +6,7 @@ class HapcanMessage:
         self.node = frame[3]
         self.group = frame[4]
         self.length = len(frame)
+        self.description_index = None
         
     def __repr__(self):
         return f"<HapcanMessage type=0x{self.frame_type:03X} node={self.node} group={self.group}>"

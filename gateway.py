@@ -37,12 +37,12 @@ class HapcanGateway:
         self._writer = None
         self.connected = False
 
-        #self.dispatcher = FrameDispatcher()
         self._sending_buffer = []
         self._sending_task = None
 
         self._incoming = bytearray([0xFF] * 16)
         self._index = 0
+        self._description_index = 0
 
         async_dispatcher_connect(hass, "hapcan_frame_103", self._on_response_device_id_from_group_0x103)
         async_dispatcher_connect(hass, "hapcan_frame_106", self._on_firmware_response_0x106)
@@ -97,6 +97,10 @@ class HapcanGateway:
                         if byte == 0xA5:
                             msg = HapcanMessage(self._incoming[:15])
                             _LOGGER.debug("RECV << %s", msg)
+                            if msg.frame_type == 0x10e:
+                                self._description_index += 1
+                                msg.description_index = self._description_index
+
                             signal = f"hapcan_frame_{msg.frame_type:03x}"
                             async_dispatcher_send(self._hass, signal, msg)
 
@@ -218,19 +222,27 @@ class HapcanGateway:
         chunk_bytes = bytes(frame[5:13])
         chunk = chunk_bytes.split(b"\x00", 1)[0].decode("ascii", errors="ignore")
 
-        _LOGGER.debug(" (%s, %s): description chunk received: '%s'", msg.node, msg.group, chunk)
 
-        if device._desc_chunks == 0:
-            device.description = chunk
-            device._desc_chunks = 1
-            _LOGGER.debug(" (%s, %s): description updated 1/2", msg.node, msg.group)
-            return
+        if device._description_chunks[0] is None:
+            device._description_chunks[0] = chunk
+            device._description_chunks_index[0] = msg.description_index
+            _LOGGER.debug(" (%s, %s): description chunk 1 received: '%s'", msg.node, msg.group, chunk)
 
-        device.description += chunk
-        _LOGGER.debug(" (%s, %s): description updated 2/2", msg.node, msg.group)
+        else:
+            device._description_chunks[1] = chunk
+            device._description_chunks_index[1] = msg.description_index
+            _LOGGER.debug(" (%s, %s): description chunk 2 received: %s", msg.node, msg.group, chunk)
 
-        self._update_device(device)
 
+        if all(chunk is not None for chunk in device._description_chunks):
+            if device._description_chunks_index[0] < device._description_chunks_index[1]:
+                device.description = device._description_chunks[0] + device._description_chunks[1]
+            else:
+                device.description = device._description_chunks[1] + device._description_chunks[0]
+            
+            _LOGGER.debug(" (%s, %s): description updated", msg.node, msg.group)
+
+            self._update_device(device)
 
     async def _poll_voltage(self, now):
         _LOGGER.debug("Pooling voltage from devices")

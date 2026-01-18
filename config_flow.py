@@ -113,5 +113,5 @@ class HapcanOptionsFlow(config_entries.OptionsFlow):
                 "edit": "Properties",
                 "scan": "Scan Hapcan bus",
             },
-            description_placeholders={"msg": "Skanowanie magistrali zakończone."}
+            description_placeholders={"msg": "Scaning finished"}
         )

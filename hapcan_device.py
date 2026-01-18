@@ -39,7 +39,8 @@ class HapcanDevice:
         self.group = group
         self.gateway = gateway
         
-        self._desc_chunks = 0
+        self._description_chunks = [None] * 2
+        self._description_chunks_index = [None] * 2
         self.description = ""
         self.serial_number = 0
 
@@ -210,7 +211,7 @@ class HapcanDevice:
             self.application_type is not None and
             self.application_version is not None and
             self.firmware_version is not None and
-            self._desc_chunks == 1
+            all(chunk is not None for chunk in self._description_chunks)
         )
 
     def update_last_seen(self):
