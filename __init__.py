@@ -62,11 +62,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
             sw_version=f"{device.hardware_version}.{device.application_type}.{device.application_version}.{device.firmware_version}",
         )
 
-        # CREATE ENTITIES AND NOTIFY PLATFORMS
+        # SAFE CREATE ENTITIES AND NOTIFY PLATFORMS
 
-        if not device.entities_registered:
-            device.create_entities()
-            async_dispatcher_send( hass, f"hapcan_register_entities_{entry.entry_id}", device )
+        device.create_entities()
+        async_dispatcher_send( hass, f"hapcan_register_entities_{entry.entry_id}", device )
 
 
     async_dispatcher_connect( hass, f"hapcan_device_ready_{entry.entry_id}", _on_device_ready)

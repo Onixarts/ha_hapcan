@@ -9,13 +9,13 @@ from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
-
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
     """Set up HAPCAN sensors from a config entry."""
 
     data = hass.data[DOMAIN][entry.entry_id]
     devices = data["devices"]
     gateway = data["gateway"]
+
 
     # -----------------------------------------------------------------------------------
     # EVENT HANDLERS
@@ -24,24 +24,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     async def _on_register_entities(device):
         _LOGGER.debug("Registering SENSOR platform entities for device %s", device)
 
-        # Pobieramy encje diagnostyczne (np. LastSeenEntity)
         entities = device.entities.get("diagnostic", [])
 
         if entities:
+
+            to_register = [ent for ent in entities if not getattr(ent, "registered", False)]
+            if not to_register:
+                _LOGGER.debug(" all SENSOR entities already registered for device. Skipping.")
+                return
+
             _LOGGER.debug(" Entity list:")
-            for ent in entities:
+            for ent in to_register:
                 _LOGGER.debug("  %s", ent)
 
-            async_add_entities(entities)
-            _LOGGER.debug(" %s sensor entities registered", len(entities))
+            async_add_entities(to_register)
 
         else:
             _LOGGER.debug(" No SENSOR entities for this device. Registration skipped.")
 
-    # Podpinamy się pod ten sam dispatcher co switch.py,
-    # ale każda platforma dostaje swoje encje.
-    async_dispatcher_connect(
-        hass,
-        f"hapcan_register_entities_{entry.entry_id}",
-        _on_register_entities
-    )
+
+    async_dispatcher_connect(hass, f"hapcan_register_entities_{entry.entry_id}", _on_register_entities )

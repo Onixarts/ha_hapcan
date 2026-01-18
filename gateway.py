@@ -198,6 +198,8 @@ class HapcanGateway:
         _LOGGER.debug(" (%s, %s): device firmware updated %s", msg.node, msg.group, device)
         self._update_device(device)
 
+        device.reset_description()
+
         self.request_description(msg.node, msg.group)
 
 
@@ -226,12 +228,12 @@ class HapcanGateway:
         if device._description_chunks[0] is None:
             device._description_chunks[0] = chunk
             device._description_chunks_index[0] = msg.description_index
-            _LOGGER.debug(" (%s, %s): description chunk 1 received: '%s'", msg.node, msg.group, chunk)
+            _LOGGER.debug(" (%s, %s): description chunk 1 received: '%s', index=%s", msg.node, msg.group, chunk, msg.description_index)
 
         else:
             device._description_chunks[1] = chunk
             device._description_chunks_index[1] = msg.description_index
-            _LOGGER.debug(" (%s, %s): description chunk 2 received: %s", msg.node, msg.group, chunk)
+            _LOGGER.debug(" (%s, %s): description chunk 2 received: '%s', index=%s", msg.node, msg.group, chunk, msg.description_index)
 
 
         if all(chunk is not None for chunk in device._description_chunks):
@@ -240,7 +242,9 @@ class HapcanGateway:
             else:
                 device.description = device._description_chunks[1] + device._description_chunks[0]
             
-            _LOGGER.debug(" (%s, %s): description updated", msg.node, msg.group)
+            device.reset_description()
+
+            _LOGGER.debug(" (%s, %s): description updated: '%s'", msg.node, msg.group, device.description)
 
             self._update_device(device)
 

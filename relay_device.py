@@ -41,10 +41,14 @@ class RelayDevice(HapcanDevice):
     def _create_entities(self):
         _LOGGER.debug("Creating specific entities for device %s", self)
 
+        existing = {e._channel: e for e in self.entities["switch"]}
+
         for channel in range(1, 7):
-            self.entities["switch"].append(RelayEntity(self, channel))
+            if channel not in existing:
+                entity = RelayEntity(self, channel)
+                self.entities["switch"].append(entity)
+                _LOGGER.debug(" entity created: %s", entity)
         
-        _LOGGER.debug(" specific entities created for device %s", self)
 
     def notify_entities(self, channel):
         try:

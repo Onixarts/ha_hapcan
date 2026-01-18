@@ -53,9 +53,6 @@ class HapcanDevice:
         self.firmware_version = 0 # idk
 
         self.entities = {}
-        self.entities_registered = False
-
-        self._ready_entities = 0
 
         # DIAGNOSTIC DATA
         self.last_seen = None
@@ -79,6 +76,10 @@ class HapcanDevice:
         if self._unsub_10C:
             self._unsub_10C()
             self._unsub_10C = None
+
+    def reset_description(self):
+        self._description_chunks = [None] * 2 
+        self._description_chunks_index = [ None ] * 2
         
     @property
     def application_type_string(self):
@@ -103,22 +104,32 @@ class HapcanDevice:
 
     def create_entities(self):
         _LOGGER.debug("Creating base entities for device %s", self)
-        self.entities = {
-            "switch": [],
-            "diagnostic": []
-        }
+        
+        if not hasattr(self, "entities"):
+            self.entities = {}
 
+        self.entities.setdefault("switch", [])
+        self.entities.setdefault("diagnostic", [])
+        
         # create common base entities
 
-        self._last_seen_entity = LastSeenSensorEntity(self)
-        self._bus_voltage_entity = BusVoltageSensorEntity(self)
-        self._cpu_voltage_entity = CpuVoltageSensorEntity(self)
-        
-        self.entities["diagnostic"].append(self._last_seen_entity)
-        self.entities["diagnostic"].append(self._bus_voltage_entity)
-        self.entities["diagnostic"].append(self._cpu_voltage_entity)
+        # --- LAST SEEN ---
+        if self._last_seen_entity is None:
+            self._last_seen_entity = LastSeenSensorEntity(self)
+            self.entities["diagnostic"].append(self._last_seen_entity)
+            _LOGGER.debug(" entity created: %s", self._last_seen_entity)
 
-        _LOGGER.debug(" base entities created for device %s", self)
+        # --- BUS VOLTAGE ---
+        if self._bus_voltage_entity is None:
+            self._bus_voltage_entity = BusVoltageSensorEntity(self)
+            self.entities["diagnostic"].append(self._bus_voltage_entity)
+            _LOGGER.debug(" entity created: %s", self._bus_voltage_entity)
+
+        # --- CPU VOLTAGE ---
+        if self._cpu_voltage_entity is None:
+            self._cpu_voltage_entity = CpuVoltageSensorEntity(self)
+            self.entities["diagnostic"].append(self._cpu_voltage_entity)
+            _LOGGER.debug(" entity created: %s", self._cpu_voltage_entity)
 
         # create device specific entities
         self._create_entities()
@@ -128,11 +139,14 @@ class HapcanDevice:
         pass
 
     async def entity_ready(self, entity):
-        self._ready_entities += 1
-        all_entities_count = sum(len(lst) for lst in self.entities.values())
-        _LOGGER.debug("Entity %s/%s registered", self._ready_entities, all_entities_count)
+        entity.registered = True
 
-        if self._ready_entities == all_entities_count:
+        registered_count = sum( 1 for lst in self.entities.values() for ent in lst if ent.registered )
+        all_entities_count = sum(len(lst) for lst in self.entities.values())
+
+        _LOGGER.debug(" Entity %s/%s registered", registered_count, all_entities_count)
+
+        if registered_count == all_entities_count:
             _LOGGER.debug( "All %s entities ready for device %s", all_entities_count, self)
             await self.request_status()
 
@@ -174,7 +188,6 @@ class HapcanDevice:
         other.application_type = self.application_type
         other.application_version = self.application_version
         other.firmware_version = self.firmware_version
-        other.entities_registered = self.entities_registered
         other.last_seen = self.last_seen
 
 

@@ -25,18 +25,22 @@ async def async_setup_entry( hass: HomeAssistant, entry: ConfigEntry, async_add_
         _LOGGER.debug("Registering SWITCH platform entities for device %s", device)
         
         entities = device.entities.get("switch", [])
+
         if entities:
 
+            to_register = [ent for ent in entities if not getattr(ent, "registered", False)]
+            if not to_register:
+                _LOGGER.debug(" all SWITCH entities already registered for device. Skipping.")
+                return
+
             _LOGGER.debug(" Entity list:")
-            for ent in entities:
+            for ent in to_register:
                 _LOGGER.debug("  %s", ent)
             
-            async_add_entities(entities)
-            _LOGGER.debug(" %s entities registered.", len(entities))
-            device.entities_registered = True
+            async_add_entities(to_register)
                 
         else:
-            _LOGGER.debug(" No entities of platform SWITCH. Etity registration skipped.")
+            _LOGGER.debug(" No SWITCH entities for this device. Registration skipped.")
 
 
     async_dispatcher_connect(hass, f"hapcan_register_entities_{entry.entry_id}", _on_register_entities )
