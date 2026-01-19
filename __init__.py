@@ -16,7 +16,7 @@ from .const import DOMAIN, DEFAULT_DIAGNOSTIC_SCAN_INTERVAL_MINUTES
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS = ["switch", "sensor"]
+PLATFORMS = ["switch", "sensor", "event"]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):

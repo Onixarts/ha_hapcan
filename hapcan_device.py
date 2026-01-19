@@ -109,6 +109,7 @@ class HapcanDevice:
             self.entities = {}
 
         self.entities.setdefault("switch", [])
+        self.entities.setdefault("event", [])
         self.entities.setdefault("diagnostic", [])
         
         # create common base entities

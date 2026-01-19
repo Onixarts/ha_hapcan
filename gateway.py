@@ -8,6 +8,7 @@ from .hapcan_device import HapcanDevice
 from . import const
 from .const import DOMAIN
 from .relay_device import RelayDevice
+from .button_device import ButtonDevice
 from homeassistant.helpers.dispatcher import async_dispatcher_send, async_dispatcher_connect
 from homeassistant.helpers.event import async_track_time_interval
 from datetime import timedelta
@@ -16,7 +17,8 @@ from datetime import timedelta
 _LOGGER = logging.getLogger(__name__)
 
 DEVICE_CLASS_REGISTRY = {
-    const.APPLICATION_TYPE_RELAY: RelayDevice
+    const.APPLICATION_TYPE_RELAY: RelayDevice,
+    const.APPLICATION_TYPE_BUTTON: ButtonDevice,
 }
 
 # ----------------------------------------------------------------------------------------------
@@ -242,8 +244,6 @@ class HapcanGateway:
             else:
                 device.description = device._description_chunks[1] + device._description_chunks[0]
             
-            device.reset_description()
-
             _LOGGER.debug(" (%s, %s): description updated: '%s'", msg.node, msg.group, device.description)
 
             self._update_device(device)
