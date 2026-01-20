@@ -2,17 +2,23 @@ import logging
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
 from .hapcan_device import HapcanDevice
-from .event_entity import HapcanEventEntity
+from .button_event_entity import ButtonEventEntity
+from .temperature_entity import TemperatureSensorEntity
 from .const import HARDWARE_TYPE_UNIV1, HARDWARE_TYPE_UNIV3, HARDWARE_TYPE_HAPCANUINO
 
 _LOGGER = logging.getLogger(__name__)
 
+APPLICATION_VERSION_8_CHANNEL_DIN_RAIL_BUTTON = 0
+APPLICATION_VERSION_13_CHANNEL_BACK_BOX_BUTTON = 1
+APPLICATION_VERSION_6_CHANNEL_BACK_BOX_TOUCH_BUTTON = 2
+APPLICATION_VERSION_14_CHANNEL_BACK_BOX_BUTTON = 3
+
 
 BUTTON_APPLICATION_VERSION = {
-    0: "8 CHANNEL DIN RAIL BOX BUTTON",
-    1: "13 CHANNEL BACK BOX BUTTON",
-    2: "6 CHANNEL BACK BOX TOUCH BUTTON",
-    3: "14 CHANNEL BACK BOX BUTTON",
+    APPLICATION_VERSION_8_CHANNEL_DIN_RAIL_BUTTON: "8 CHANNEL DIN RAIL BOX BUTTON",
+    APPLICATION_VERSION_13_CHANNEL_BACK_BOX_BUTTON: "13 CHANNEL BACK BOX BUTTON",
+    APPLICATION_VERSION_6_CHANNEL_BACK_BOX_TOUCH_BUTTON: "6 CHANNEL BACK BOX TOUCH BUTTON",
+    APPLICATION_VERSION_14_CHANNEL_BACK_BOX_BUTTON: "14 CHANNEL BACK BOX BUTTON",
 }
 
 BUTTON_CODE_TO_EVENT = {
@@ -32,13 +38,21 @@ class ButtonDevice(HapcanDevice):
     def __init__(self, node, group, gateway):
         super().__init__(node, group, gateway)
         self.button_count = 0
+
+        self.temperature = None
+        self._temperature_entity = None
         
         self._unsub_301 = async_dispatcher_connect( gateway._hass, "hapcan_frame_301", self._handle_button_frame_301 )
+
+        #TODO don't subscribe if device has no temperature sensor
+        self._unsub_304 = async_dispatcher_connect( gateway._hass, "hapcan_frame_304", self._handle_temperature_frame_304 )
 
 
     async def async_will_remove_from_hass(self):
         if self._unsub_301:
             self._unsub_301()
+        if self._unsub_304:
+            self._unsub_304()
 
 
     @property
@@ -46,7 +60,7 @@ class ButtonDevice(HapcanDevice):
         return BUTTON_APPLICATION_VERSION.get( self.application_version, "Unknown button module" )
 
     # -------------------------------------------------------------------------
-    #  TWORZENIE ENCJI
+    #  ENTITIES
     # -------------------------------------------------------------------------
 
     def _create_entities(self):
@@ -66,18 +80,30 @@ class ButtonDevice(HapcanDevice):
 
         self.entities.setdefault("event", [])
 
-        # znajdź istniejące encje
+        # --- BUTTONS ENTITIES ---
         existing = { e._channel: e for e in self.entities["event"] if hasattr(e, "_channel") }
 
         # utwórz brakujące encje
         for ch in range(1, self.button_count + 1):
             if ch not in existing:
-                ent = HapcanEventEntity(self, ch)
+                ent = ButtonEventEntity(self, ch)
                 self.entities["event"].append(ent)
                 _LOGGER.debug(" event entity created: %s", ent)
 
+
+        # --- TEMPERATURE  ---
+        if self.application_version != APPLICATION_VERSION_8_CHANNEL_DIN_RAIL_BUTTON:
+
+            self.entities.setdefault("sensor", [])
+
+            if self._temperature_entity is None:
+                self._temperature_entity = TemperatureSensorEntity(self)
+                self.entities["sensor"].append(self._temperature_entity)
+                _LOGGER.debug(" entity created: %s", self._temperature_entity)
+
+
     # -------------------------------------------------------------------------
-    #  OBSŁUGA RAMEK PRZYCISKÓW (0x301)
+    #  FRAME HANDLING
     # -------------------------------------------------------------------------
 
     def _handle_button_frame_301(self, msg):
@@ -94,25 +120,45 @@ class ButtonDevice(HapcanDevice):
         press_type = BUTTON_CODE_TO_EVENT.get(frame[8], None)
 
         if press_type:
-            self._notify_button_event(channel, press_type)
-
-    # -------------------------------------------------------------------------
-    #  POWIADAMIANIE ENCJI
-    # -------------------------------------------------------------------------
-
-    def _notify_button_event(self, channel, press_type):
-        try:
-            entity = next( e for e in self.entities["event"] if getattr(e, "_channel", None) == channel)
-        except StopIteration:
-            _LOGGER.error( "Button channel %s not found for device %s", channel, self )
+            self.notify_entities(channel, press_type)
+    
+    
+    def _handle_temperature_frame_304(self, msg):
+        
+        if self.application_version == APPLICATION_VERSION_8_CHANNEL_DIN_RAIL_BUTTON:
+            return
+        if msg.node != self.node or msg.group != self.group:
             return
 
-        hass = self.gateway._hass
+        frame = msg.frame
 
-        hass.loop.call_soon_threadsafe(
-            hass.async_create_task,
-            entity.async_fire_event(press_type)
-        )
+        # temperature frame
+        if frame[7] != 0x11:
+            return
+        
+        raw_temp = (frame[8] << 8) | frame[9]
+        self.temperature = round(raw_temp * 0.0625, 1)
+
+        if self._temperature_entity:
+            self._temperature_entity.device_updated()
+
+
+    # -------------------------------------------------------------------------
+    #  NOTIFY ENTITIES
+    # -------------------------------------------------------------------------
+
+    def notify_entities(self, channel, press_type):
+        try:
+            entity = self.entities["event"][channel - 1]
+            hass = self.gateway._hass
+
+            hass.loop.call_soon_threadsafe(
+                hass.async_create_task,
+                entity.async_fire_event(press_type)
+            )
+        except IndexError:
+            _LOGGER.error("Button channel %s out of range for device %s", channel, self)
+
 
     # -------------------------------------------------------------------------
     #  KOMPLETNOŚĆ URZĄDZENIA

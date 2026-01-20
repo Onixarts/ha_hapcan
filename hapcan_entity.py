@@ -15,7 +15,8 @@ class HapcanEntity(Entity):
 
     @callback
     def device_updated(self):
-        self.hass.loop.call_soon_threadsafe(self.async_write_ha_state)
+        if self.hass is not None:
+            self.hass.loop.call_soon_threadsafe(self.async_write_ha_state)
 
     async def async_added_to_hass(self):
         await self._device.entity_ready(self)

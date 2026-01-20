@@ -69,8 +69,7 @@ class HapcanDevice:
 
 
     async def async_will_remove_from_hass(self):
-        if self._unsub_10C:
-            self._unsub_10C()        
+        self.cleanup()
 
     def cleanup(self):
         if self._unsub_10C:
@@ -109,6 +108,7 @@ class HapcanDevice:
             self.entities = {}
 
         self.entities.setdefault("switch", [])
+        self.entities.setdefault("sensor", [])
         self.entities.setdefault("event", [])
         self.entities.setdefault("diagnostic", [])
         

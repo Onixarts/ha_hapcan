@@ -6,7 +6,7 @@ from .hapcan_entity import HapcanEntity
 _LOGGER = logging.getLogger(__name__)
 
 
-class HapcanEventEntity(HapcanEntity, EventEntity):
+class ButtonEventEntity(HapcanEntity, EventEntity):
     """HAPCAN physical button represented as an event entity."""
 
     _attr_device_class = EventDeviceClass.BUTTON
@@ -34,7 +34,7 @@ class HapcanEventEntity(HapcanEntity, EventEntity):
 
     def __repr__(self):
         return (
-            f"<HapcanEventEntity unique_id={self._attr_unique_id!r} "
+            f"<ButtonEventEntity unique_id={self._attr_unique_id!r} "
             f"name={self._attr_name!r} "
             f"device={self._device.id!r} "
             f"channel={self._channel}>"
@@ -64,3 +64,5 @@ class HapcanEventEntity(HapcanEntity, EventEntity):
             }
         )
         self.async_write_ha_state()
+
+

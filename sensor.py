@@ -24,7 +24,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     async def _on_register_entities(device):
         _LOGGER.debug("Registering SENSOR platform entities for device %s", device)
 
-        entities = device.entities.get("diagnostic", [])
+        entities = device.entities.get("sensor", []) + device.entities.get("diagnostic", [])
 
         if entities:
 
