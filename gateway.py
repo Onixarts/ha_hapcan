@@ -9,6 +9,7 @@ from . import const
 from .const import DOMAIN
 from .relay_device import RelayDevice
 from .button_device import ButtonDevice
+from .cover_device import CoverDevice
 from homeassistant.helpers.dispatcher import async_dispatcher_send, async_dispatcher_connect
 from homeassistant.helpers.event import async_track_time_interval
 from datetime import timedelta
@@ -19,6 +20,7 @@ _LOGGER = logging.getLogger(__name__)
 DEVICE_CLASS_REGISTRY = {
     const.APPLICATION_TYPE_RELAY: RelayDevice,
     const.APPLICATION_TYPE_BUTTON: ButtonDevice,
+    const.APPLICATION_TYPE_BLIND_CONTROLLER: CoverDevice,
 }
 
 # ----------------------------------------------------------------------------------------------
