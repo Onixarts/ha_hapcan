@@ -56,7 +56,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
             identifiers={(DOMAIN, device.id)},
             manufacturer="HAPCAN",
             name=device.description or f"HAPCAN {device.application_type_string} ({device.node},{device.group})",
-            model=f"{device.hardware_type_string} - {device.application_type_string}",
+            model=f"({device.node}, {device.group}) {device.application_type_string}",
             serial_number = device.serial_number,
             hw_version=f"{device.hardware_version}.{device.application_type}.{device.application_version}.X",
             sw_version=f"{device.hardware_version}.{device.application_type}.{device.application_version}.{device.firmware_version}",
