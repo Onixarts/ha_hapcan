@@ -31,8 +31,6 @@ class RgbEntity(HapcanEntity, LightEntity):
         HapcanEntity.__init__(self, device)
         LightEntity.__init__(self)
 
-        self._device = device
-
         self._attr_name = f"RGB"
         self._attr_unique_id = f"{device.id}_rgb"
 
