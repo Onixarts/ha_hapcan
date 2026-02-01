@@ -10,6 +10,7 @@ from .const import DOMAIN
 from .relay_device import RelayDevice
 from .button_device import ButtonDevice
 from .cover_device import CoverDevice
+from .rgb_device import RGBDevice
 from homeassistant.helpers.dispatcher import async_dispatcher_send, async_dispatcher_connect
 from homeassistant.helpers.event import async_track_time_interval
 from datetime import timedelta
@@ -21,6 +22,7 @@ DEVICE_CLASS_REGISTRY = {
     const.APPLICATION_TYPE_RELAY: RelayDevice,
     const.APPLICATION_TYPE_BUTTON: ButtonDevice,
     const.APPLICATION_TYPE_BLIND_CONTROLLER: CoverDevice,
+    const.APPLICATION_TYPE_LED_CONTROLLER: RGBDevice, 
 }
 
 # ----------------------------------------------------------------------------------------------
