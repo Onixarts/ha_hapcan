@@ -26,11 +26,11 @@ BUTTON_CODE_TO_EVENT = {
     0x00: "open",
     0x01: "disabled",
     0xFF: "closed",
-    0xFE: "short_press",
-    0xFD: "long_press",
-    0xFC: "short_click",
-    0xFB: "long_click",
-    0xFA: "very_long_click"
+    0xFE: "closed_held_400ms",
+    0xFD: "closed_held_4s",
+    0xFC: "closed_opened_within_400ms",
+    0xFB: "closed_opened_between_400ms_4s",
+    0xFA: "closed_opened_after_4s",
     }
 
 

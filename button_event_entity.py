@@ -4,23 +4,14 @@ from homeassistant.components.event import EventEntity, EventDeviceClass
 from .hapcan_entity import HapcanEntity
 
 _LOGGER = logging.getLogger(__name__)
-
+BUTTON_EVENT = "hapcan.button_event"
 
 class ButtonEventEntity(HapcanEntity, EventEntity):
     """HAPCAN physical button represented as an event entity."""
 
     _attr_device_class = EventDeviceClass.BUTTON
     _attr_has_entity_name = True
-    _attr_event_types = [
-        "open",
-        "disabled",
-        "closed", 
-        "short_press",
-        "long_press", 
-        "short_click",
-        "long_click",
-        "very_long_click" 
-    ]
+    _attr_event_types = [BUTTON_EVENT]
 
     def __init__(self, device, channel):
         HapcanEntity.__init__(self, device)
@@ -46,21 +37,16 @@ class ButtonEventEntity(HapcanEntity, EventEntity):
 
     async def async_fire_event(self, press_type: str):
         """Called by device when a button event occurs."""
-        if press_type not in self._attr_event_types:
-            _LOGGER.warning(
-                "Unknown press type %s for button %s on device %s",
-                press_type, self._channel, self._device.id
-            )
-            return
+
 
         _LOGGER.debug("Firing event '%s' for button %s on device %s", press_type, self._channel, self._device )
 
         self._trigger_event(
-            press_type,
+            BUTTON_EVENT,
             {
                 "device_id": self._device.id,
                 "channel": self._channel,
-                "press_type": press_type,
+                "button": press_type,
             }
         )
         self.async_write_ha_state()
