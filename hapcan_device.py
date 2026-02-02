@@ -113,6 +113,7 @@ class HapcanDevice:
         self.entities.setdefault("cover", [])
         self.entities.setdefault("light", [])
         self.entities.setdefault("number", [])
+        self.entities.setdefault("remote", [])
         self.entities.setdefault("diagnostic", [])
         
         # create common base entities
