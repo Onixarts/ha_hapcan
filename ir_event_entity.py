@@ -33,16 +33,19 @@ class IREventEntity(HapcanEntity, EventEntity):
     # EVENT HANDLING
     # ---------------------------------------------------------------------------
 
-    async def async_fire_event(self, ir_code: str, code_name: str):
+    async def async_fire_event(self, address: str, command: str, protocol: str, code_type: str):
         """Called by device when an IR code is received."""
         event_type = "hapcan.ir_code_received"
         event_data = {
             "device_id": self._device.id,
-            "ir_code": ir_code,
-            "code_name": code_name,
+            "code_type": code_type,
+            "address": address,
+            "command": command,
+            "protocol": protocol,
         }
 
-        _LOGGER.debug("Firing event '%s' for IR code %s on device %s", event_type, ir_code, self._device)
+        _LOGGER.debug("Firing event '%s' with code_type=%s, address=%s, command=%s, protocol=%s on device %s", 
+                     event_type, code_type, address, command, protocol, self._device)
 
         self._trigger_event(event_type, event_data)
         self.async_write_ha_state()

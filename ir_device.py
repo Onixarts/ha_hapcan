@@ -81,7 +81,7 @@ class IRDevice(HapcanDevice):
     # NOTIFY ENTITIES
     # -------------------------------------------------------------------------
 
-    def notify_ir_event(self, ir_code: str, code_name: str):
+    def notify_ir_event(self, address: str, command: str, protocol: str, code_type: str):
         """Notify the IR event entity about received code."""
         try:
             if self._ir_event_entity is None:
@@ -90,7 +90,7 @@ class IRDevice(HapcanDevice):
             hass = self.gateway._hass
             hass.loop.call_soon_threadsafe(
                 hass.async_create_task,
-                self._ir_event_entity.async_fire_event(ir_code, code_name)
+                self._ir_event_entity.async_fire_event(address, command, protocol, code_type)
             )
         except Exception as e:
             _LOGGER.error("Error notifying IR event: %s", e)
@@ -123,16 +123,22 @@ class IRDevice(HapcanDevice):
             _LOGGER.debug(" IR transmission ended for device %s", self)
             return
             
-        # Build IR code string based on code type
+        # Extract address and command based on code type
+        protocol = IR_CODES.get(code_type, "Unknown").strip()
+        code_type_hex = f"{code_type:02x}"
+        
         if code_type in [0x03, 0x04, 0x06, 0x07]:  # Single address + command
-            ir_code = f"{code_type:02x}_{code1:02x}_{code2:02x}"
+            address = f"{code1:02x}"
+            command = f"{code2:02x}"
         elif code_type in [0x05, 0x08]:  # Address MSB, LSB + command
-            ir_code = f"{code_type:02x}_{code1:02x}{code2:02x}_{code3:02x}"
+            address = f"{code1:02x}{code2:02x}"
+            command = f"{code3:02x}"
         else:
-            ir_code = f"{code_type:02x}_{code1:02x}_{code2:02x}_{code3:02x}"
+            address = f"{code1:02x}"
+            command = f"{code2:02x}_{code3:02x}"
         
         # Notify event entity
-        self.notify_ir_event(ir_code, IR_CODES.get(code_type, "Unknown"))
+        self.notify_ir_event(address, command, protocol, code_type_hex)
 
 
     async def send_ir_code(self, ir_code: str) -> bool:
