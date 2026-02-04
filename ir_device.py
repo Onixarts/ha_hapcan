@@ -4,7 +4,7 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from .hapcan_device import HapcanDevice
 from .ir_event_entity import IREventEntity
 from .remote_entity import RemoteEntity
-from .const import HARDWARE_TYPE_UNIV1, HARDWARE_TYPE_UNIV3, HARDWARE_TYPE_HAPCANUINO
+from .const import HARDWARE_TYPE_UNIV1, HARDWARE_TYPE_UNIV3, HARDWARE_TYPE_HAPCANUINO, HapcanEvent
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -81,17 +81,28 @@ class IRDevice(HapcanDevice):
     # NOTIFY ENTITIES
     # -------------------------------------------------------------------------
 
-    def notify_ir_event(self, address: str, command: str, protocol: str, code_type: str):
-        """Notify the IR event entity about received code."""
+    def notify_entities(self, address: str, command: str, protocol: str, code_type: str):
         try:
             if self._ir_event_entity is None:
                 return
             
             hass = self.gateway._hass
-            hass.loop.call_soon_threadsafe(
-                hass.async_create_task,
-                self._ir_event_entity.async_fire_event(address, command, protocol, code_type)
-            )
+
+            event_type = HapcanEvent.IR_CODE_RECEIVED
+            event_data = {
+                "device_id": self.id,
+                "code_type": code_type,
+                "address": address,
+                "command": command,
+                "protocol": protocol,
+            }
+            
+
+            self._ir_event_entity._trigger_event(event_type, event_data)
+            self._ir_event_entity.device_updated()
+            
+            hass.bus.async_fire(event_type, event_data)
+
         except Exception as e:
             _LOGGER.error("Error notifying IR event: %s", e)
 
@@ -138,7 +149,7 @@ class IRDevice(HapcanDevice):
             command = f"{code2:02x}_{code3:02x}"
         
         # Notify event entity
-        self.notify_ir_event(address, command, protocol, code_type_hex)
+        self.notify_entities(address, command, protocol, code_type_hex)
 
 
     async def send_ir_code(self, ir_code: str) -> bool:
