@@ -48,7 +48,7 @@ class IRDevice(HapcanDevice):
 
     @property
     def application_type_string(self):
-        return IR_APPLICATION_VERSION.get( self.application_version, "Unknown IR module aaaaaa" )
+        return IR_APPLICATION_VERSION.get( self.application_version, "Unknown IR module" )
 
     # -------------------------------------------------------------------------
     #  ENTITIES
@@ -100,7 +100,7 @@ class IRDevice(HapcanDevice):
 
             self._ir_event_entity._trigger_event(event_type, event_data)
             self._ir_event_entity.device_updated()
-            
+
             hass.bus.async_fire(event_type, event_data)
 
         except Exception as e:
@@ -127,11 +127,9 @@ class IRDevice(HapcanDevice):
         code3 = frame[10]
         
         transmission_state = "end" if is_end_transmission else "beginning"
-        _LOGGER.debug("IR frame 303 received (%s): code_type=0x%02x", transmission_state, code_type)
-        
+                
         # Only process the beginning of transmission to avoid duplicate events
         if is_end_transmission:
-            _LOGGER.debug(" IR transmission ended for device %s", self)
             return
             
         # Extract address and command based on code type
