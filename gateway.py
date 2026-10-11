@@ -33,7 +33,7 @@ DEVICE_CLASS_REGISTRY = {
 
 class HapcanGateway:
     """Gateway TCP dla HAPCAN z odbiorem ramek 13/15 bajtów."""
-    SENDING_LIMIT = 0.005
+    SENDING_LIMIT = 0.01
 
     def __init__(self, hass: HomeAssistant, entry_id, options):
         self._hass = hass
