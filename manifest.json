@@ -1,7 +1,9 @@
 {
     "domain": "hapcan",
-    "name": "Hapcan integration",
+    "name": "HAPCAN",
     "version": "0.1.0",
+    "documentation": "https://github.com/Onixarts/ha_hapcan",
+    "issue_tracker": "https://github.com/Onixarts/ha_hapcan/issues",
     "dependencies": [],
     "codeowners": ["@onixarts"],
     "requirements": [],
