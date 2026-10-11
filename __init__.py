@@ -68,7 +68,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         async_dispatcher_send( hass, f"hapcan_register_entities_{entry.entry_id}", device )
 
 
-    async_dispatcher_connect( hass, f"hapcan_device_ready_{entry.entry_id}", _on_device_ready)
+    unsubscribe_device_ready = async_dispatcher_connect(
+        hass, f"hapcan_device_ready_{entry.entry_id}", _on_device_ready
+    )
+    hass.data[DOMAIN][entry.entry_id]["unsubscribe_device_ready"] = unsubscribe_device_ready
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     await gateway.connect()
 
@@ -82,6 +85,11 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
     if unload_ok:
+        entry_data = hass.data[DOMAIN][entry.entry_id]
+        entry_data["unsubscribe_device_ready"]()
+        await entry_data["gateway"].stop()
         hass.data[DOMAIN].pop(entry.entry_id)
+        if hass.data[DOMAIN].get("gateway") is entry_data["gateway"]:
+            hass.data[DOMAIN].pop("gateway")
 
     return unload_ok

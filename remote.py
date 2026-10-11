@@ -26,10 +26,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         entities = device.entities.get("remote", [])
 
         if entities:
-            async_add_entities(entities)
-            _LOGGER.debug("Added %d remote entities", len(entities))
+            to_register = [ent for ent in entities if not getattr(ent, "registered", False)]
+            if to_register:
+                async_add_entities(to_register)
+                _LOGGER.debug("Added %d remote entities", len(to_register))
 
-    async_dispatcher_connect(hass, f"hapcan_register_entities_{entry.entry_id}", _on_register_entities)
+    entry.async_on_unload(
+        async_dispatcher_connect(
+            hass, f"hapcan_register_entities_{entry.entry_id}", _on_register_entities
+        )
+    )
 
     # Process already registered devices
     for device in devices.values():

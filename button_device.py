@@ -51,10 +51,16 @@ class ButtonDevice(HapcanDevice):
 
 
     async def async_will_remove_from_hass(self):
+        self.cleanup()
+
+    def cleanup(self):
+        super().cleanup()
         if self._unsub_301:
             self._unsub_301()
+            self._unsub_301 = None
         if self._unsub_304:
             self._unsub_304()
+            self._unsub_304 = None
 
 
     @property

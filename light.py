@@ -43,8 +43,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
             _LOGGER.debug(" No LIGHT entities for this device. Registration skipped.")
 
     # rejestrujemy handler dla tego config_entry
-    async_dispatcher_connect(
-        hass,
-        f"hapcan_register_entities_{entry.entry_id}",
-        _on_register_entities
+    entry.async_on_unload(
+        async_dispatcher_connect(
+            hass,
+            f"hapcan_register_entities_{entry.entry_id}",
+            _on_register_entities,
+        )
     )

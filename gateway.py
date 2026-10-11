@@ -44,46 +44,135 @@ class HapcanGateway:
         self._reader = None
         self._writer = None
         self.connected = False
+        self._stopped = False
+        self._connection_task = None
+        self._scan_task = None
 
         self._sending_buffer = []
         self._sending_task = None
+        self._unsubscribers = []
 
         self._incoming = bytearray([0xFF] * 16)
         self._index = 0
         self._description_index = 0
 
-        async_dispatcher_connect(hass, "hapcan_frame_103", self._on_response_device_id_from_group_0x103)
-        async_dispatcher_connect(hass, "hapcan_frame_106", self._on_firmware_response_0x106)
-        async_dispatcher_connect(hass, "hapcan_frame_10e", self._on_description_response_0x10E)
+        self._unsubscribers.append(async_dispatcher_connect(hass, "hapcan_frame_103", self._on_response_device_id_from_group_0x103))
+        self._unsubscribers.append(async_dispatcher_connect(hass, "hapcan_frame_106", self._on_firmware_response_0x106))
+        self._unsubscribers.append(async_dispatcher_connect(hass, "hapcan_frame_10e", self._on_description_response_0x10E))
 
         if options["diagnostic_scan_interval_minutes"] > 0:
-            async_track_time_interval( hass, self._poll_voltage, timedelta(minutes=options["diagnostic_scan_interval_minutes"]))
+            self._unsubscribers.append(
+                async_track_time_interval(
+                    hass,
+                    self._poll_voltage,
+                    timedelta(minutes=options["diagnostic_scan_interval_minutes"]),
+                )
+            )
 
 
     async def connect(self):
-        """Nawiązanie połączenia TCP."""
+        """Uruchamia pętlę utrzymującą połączenie TCP."""
+        if self._connection_task and not self._connection_task.done():
+            return
 
+        self._stopped = False
+        self._connection_task = asyncio.create_task(self._connection_loop())
+
+    async def _connection_loop(self):
+        retry_delay = 1
+
+        while not self._stopped:
+            connected_at = None
+            try:
+                self._reader, self._writer = await asyncio.open_connection(
+                    self._host, self._port
+                )
+                self.connected = True
+                connected_at = self._hass.loop.time()
+                _LOGGER.info("HAPCAN connected to %s:%s", self._host, self._port)
+
+                self._scan_task = asyncio.create_task(self.scan_network())
+                await self._read_loop()
+
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                _LOGGER.exception("HAPCAN connection error to %s:%s", self._host, self._port)
+            finally:
+                self.connected = False
+                if self._scan_task:
+                    self._scan_task.cancel()
+                    await asyncio.gather(self._scan_task, return_exceptions=True)
+                    self._scan_task = None
+
+                self._sending_buffer.clear()
+                if self._sending_task:
+                    self._sending_task.cancel()
+                    await asyncio.gather(self._sending_task, return_exceptions=True)
+                    self._sending_task = None
+
+                await self._close_writer()
+
+            if self._stopped:
+                break
+
+            if connected_at is not None and self._hass.loop.time() - connected_at >= 30:
+                retry_delay = 1
+
+            _LOGGER.warning("HAPCAN disconnected; retrying in %s seconds", retry_delay)
+            await asyncio.sleep(retry_delay)
+            retry_delay = min(retry_delay * 2, 60)
+
+    async def _close_writer(self):
+        writer = self._writer
+        self._writer = None
+        self._reader = None
+        if writer is None:
+            return
+
+        writer.close()
         try:
-            self._reader, self._writer = await asyncio.open_connection(
-                self._host, self._port
-            )
-            self.connected = True
-            _LOGGER.info("HAPCAN connected to %s:%s", self._host, self._port)
+            await writer.wait_closed()
+        except (ConnectionError, OSError):
+            pass
 
-            asyncio.create_task(self._read_loop())
-            asyncio.create_task(self.scan_network())
+    async def stop(self):
+        """Zatrzymuje połączenie i zwalnia zasoby gatewaya."""
+        self._stopped = True
+        self.connected = False
 
-        except Exception as e:
-            _LOGGER.error("Connection error: %s", e)
-            self.connected = False
+        tasks = [self._connection_task, self._scan_task, self._sending_task]
+        for task in tasks:
+            if task and not task.done():
+                task.cancel()
+
+        await self._close_writer()
+        await asyncio.gather(
+            *(task for task in tasks if task and task is not asyncio.current_task()),
+            return_exceptions=True,
+        )
+
+        self._connection_task = None
+        self._scan_task = None
+        self._sending_task = None
+        self._sending_buffer.clear()
+
+        entry_data = self._hass.data.get(DOMAIN, {}).get(self.entry_id)
+        if entry_data:
+            for device in entry_data["devices"].values():
+                device.cleanup()
+
+        for unsubscribe in self._unsubscribers:
+            unsubscribe()
+        self._unsubscribers.clear()
 
     async def _read_loop(self):
         
-        while self.connected:
+        while self.connected and not self._stopped:
             try:
                 data = await self._reader.read(64)
                 if not data:
-                    _LOGGER.error("Disconnected")
+                    _LOGGER.warning("HAPCAN TCP connection closed by peer")
                     self.connected = False
                     break
 

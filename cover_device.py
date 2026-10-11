@@ -33,8 +33,13 @@ class CoverDevice(HapcanDevice):
         )
 
     async def async_will_remove_from_hass(self):
+        self.cleanup()
+
+    def cleanup(self):
+        super().cleanup()
         if self._unsub_307:
             self._unsub_307()
+            self._unsub_307 = None
 
     @property
     def application_type_string(self):

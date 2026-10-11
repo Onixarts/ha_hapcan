@@ -29,7 +29,7 @@ async def async_setup_entry( hass: HomeAssistant, entry: ConfigEntry, async_add_
             _LOGGER.debug(" No EVENT entities for this device. Registration skipped.")
             return
 
-        to_register = [ ent for ent in entities if not getattr(ent, "_registered", False) ]
+        to_register = [ent for ent in entities if not getattr(ent, "registered", False)]
 
         if not to_register:
             _LOGGER.debug( " All EVENT entities already registered for device %s. Skipping.", device)
@@ -42,4 +42,8 @@ async def async_setup_entry( hass: HomeAssistant, entry: ConfigEntry, async_add_
         async_add_entities(to_register)
 
 
-    async_dispatcher_connect( hass, f"hapcan_register_entities_{entry.entry_id}", _on_register_entities )
+    entry.async_on_unload(
+        async_dispatcher_connect(
+            hass, f"hapcan_register_entities_{entry.entry_id}", _on_register_entities
+        )
+    )

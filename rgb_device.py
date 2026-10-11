@@ -28,8 +28,13 @@ class RGBDevice(HapcanDevice):
         self._unsub_308 = async_dispatcher_connect( gateway._hass, "hapcan_frame_308", self._handle_rgb_frame_308 )
 
     async def async_will_remove_from_hass(self):
+        self.cleanup()
+
+    def cleanup(self):
+        super().cleanup()
         if self._unsub_308:
             self._unsub_308()
+            self._unsub_308 = None
 
     @property
     def application_type_string(self):

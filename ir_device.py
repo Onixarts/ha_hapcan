@@ -39,9 +39,15 @@ class IRDevice(HapcanDevice):
 
 
     async def async_will_remove_from_hass(self):
+        self.cleanup()
+
+    def cleanup(self):
+        super().cleanup()
         if self._unsub_303:
             self._unsub_303()
             self._unsub_303 = None
+        self._ir_event_entity = None
+        self._remote_entity = None
         self._ir_event_entity = None
         self._remote_entity = None
 

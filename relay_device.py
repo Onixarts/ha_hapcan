@@ -31,8 +31,13 @@ class RelayDevice(HapcanDevice):
 
 
     async def async_will_remove_from_hass(self):
+        self.cleanup()
+
+    def cleanup(self):
+        super().cleanup()
         if self._unsub_302:
             self._unsub_302()
+            self._unsub_302 = None
 
     @property
     def application_type_string(self):
