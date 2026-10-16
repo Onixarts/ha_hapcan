@@ -53,6 +53,7 @@ class HapcanDevice:
         self.firmware_version = 0 # idk
 
         self.entities = {}
+        self._entity_registration_dispatched = False
 
         # DIAGNOSTIC DATA
         self.last_seen = None

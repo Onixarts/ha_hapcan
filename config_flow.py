@@ -1,11 +1,20 @@
-from __future__ import annotations
+import asyncio
+import logging
 
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
+from homeassistant.helpers import selector
 
-from .const import DOMAIN, DEFAULT_DIAGNOSTIC_SCAN_INTERVAL_MINUTES
+from .const import (
+    DOMAIN,
+    DEFAULT_DIAGNOSTIC_SCAN_INTERVAL_MINUTES,
+    DEFAULT_GROUP_START,
+    DEFAULT_GROUP_END,
+)
+
+_LOGGER = logging.getLogger(__name__)
 
 
 #-------------------------------------------------------------------------------
@@ -26,6 +35,8 @@ class HapcanConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     "host": user_input["host"],
                     "port": user_input["port"],
                     "diagnostic_scan_interval_minutes": DEFAULT_DIAGNOSTIC_SCAN_INTERVAL_MINUTES,
+                    "group_start": DEFAULT_GROUP_START,
+                    "group_end": DEFAULT_GROUP_END,
                 },
             )
 
@@ -54,6 +65,14 @@ class HapcanOptionsFlow(config_entries.OptionsFlow):
 
     def __init__(self, config_entry):
         self._config_entry = config_entry
+        self._scan_task = None
+        self._scan_group_start = None
+        self._scan_group_count = 0
+
+    def async_abort(self, reason):
+        if self._scan_task and not self._scan_task.done():
+            self._scan_task.cancel()
+        return super().async_abort(reason)
 
     # --- MENU GŁÓWNE ---
     async def async_step_init(self, user_input=None):
@@ -74,6 +93,8 @@ class HapcanOptionsFlow(config_entries.OptionsFlow):
                     "host": user_input["host"],
                     "port": user_input["port"],
                     "diagnostic_scan_interval_minutes": user_input["diagnostic_scan_interval_minutes"],
+                    "group_start": user_input["group_start"],
+                    "group_end": user_input["group_end"],
                 },
             )
 
@@ -90,10 +111,33 @@ class HapcanOptionsFlow(config_entries.OptionsFlow):
                 DEFAULT_DIAGNOSTIC_SCAN_INTERVAL_MINUTES
             )
         )
-
+        current_group_start = self.config_entry.options.get(
+            "group_start",
+            self.config_entry.data.get("group_start", DEFAULT_GROUP_START),
+        )
+        current_group_end = self.config_entry.options.get(
+            "group_end",
+            self.config_entry.data.get("group_end", DEFAULT_GROUP_END),
+        )
         schema = vol.Schema({
             vol.Required("host", default=current_host): str,
             vol.Required("port", default=current_port): int,
+            vol.Required("group_start", default=current_group_start): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=1,
+                    max=255,
+                    step=1,
+                    mode=selector.NumberSelectorMode.BOX,
+                )
+            ),
+            vol.Required("group_end", default=current_group_end): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=1,
+                    max=255,
+                    step=1,
+                    mode=selector.NumberSelectorMode.BOX,
+                )
+            ),
             vol.Required(
                 "diagnostic_scan_interval_minutes",
                 default=current_interval
@@ -105,13 +149,40 @@ class HapcanOptionsFlow(config_entries.OptionsFlow):
     # --- RĘCZNE SKANOWANIE MAGISTRALI ---
     async def async_step_scan(self, user_input=None):
         gateway = self.hass.data[DOMAIN][self.config_entry.entry_id]["gateway"]
-        await gateway.scan_network()
+        if self._scan_task is None:
+            group_start = gateway._group_start
+            group_end = gateway._group_end
+            self._scan_group_start = group_start
+            self._scan_group_count = group_end - group_start + 1
+            self._scan_task = self.hass.async_create_task(
+                self._run_scan(gateway), name="hapcan_manual_scan"
+            )
 
-        return self.async_show_menu(
-            step_id="init",
-            menu_options={
-                "edit": "Properties",
-                "scan": "Scan Hapcan bus",
-            },
-            description_placeholders={"msg": "Scaning finished"}
+        if self._scan_task.done():
+            try:
+                self._scan_task.result()
+            except asyncio.CancelledError:
+                return self.async_abort(reason="scan_cancelled")
+            except Exception:
+                _LOGGER.exception("HAPCAN network scan failed")
+                return self.async_abort(reason="scan_failed")
+            finally:
+                self._scan_task = None
+
+            return self.async_show_progress_done(next_step_id="scan_done")
+
+        return self.async_show_progress(
+            step_id="scan",
+            progress_action="scan",
+            progress_task=self._scan_task,
         )
+
+    async def async_step_scan_done(self, user_input=None):
+        return await self.async_step_init()
+
+    async def _run_scan(self, gateway):
+        await gateway.scan_network(self._update_scan_progress)
+
+    async def _update_scan_progress(self, group):
+        progress = (group - self._scan_group_start + 1) / self._scan_group_count
+        self.async_update_progress(progress)

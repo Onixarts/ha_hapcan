@@ -39,6 +39,8 @@ class HapcanGateway:
         self._hass = hass
         self._host = options["host"]
         self._port = options["port"]
+        self._group_start = int(options["group_start"])
+        self._group_end = int(options["group_end"])
         self.entry_id = entry_id
 
         self._reader = None
@@ -227,10 +229,13 @@ class HapcanGateway:
     # SKANOWANIE SIECI HAPCAN
     # ----------------------------------------------------------------------------------------------
 
-    async def scan_network(self):
+    async def scan_network(self, progress_callback=None):
         _LOGGER.debug("HAPCAN BUS SCANNING...")
 
-        for group in range(1, 10):
+        for group in range(self._group_start, self._group_end + 1):
+            if progress_callback is not None:
+                await progress_callback(group)
+
             frame = bytearray([0xAA, 0x10, 0x30, 0x00, 0x00, 0xFF, 0xFF, 0x00, group, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xA5])
 
             _LOGGER.debug("Scanning group %s ------------------------------------------", group)

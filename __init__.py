@@ -12,7 +12,12 @@ from homeassistant.config_entries import ConfigEntry
 
 
 from .gateway import HapcanGateway
-from .const import DOMAIN, DEFAULT_DIAGNOSTIC_SCAN_INTERVAL_MINUTES
+from .const import (
+    DOMAIN,
+    DEFAULT_DIAGNOSTIC_SCAN_INTERVAL_MINUTES,
+    DEFAULT_GROUP_START,
+    DEFAULT_GROUP_END,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -21,6 +26,7 @@ PLATFORMS = ["switch", "sensor", "event", "cover", "light", "number", "remote"]
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Set up HAPCAN from a config entry."""
+    entry.async_on_unload(entry.add_update_listener(async_reload_entry))
 
     host = entry.data["host"]
     port = entry.data["port"]
@@ -28,11 +34,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         "diagnostic_scan_interval_minutes",
         entry.data.get("diagnostic_scan_interval_minutes", DEFAULT_DIAGNOSTIC_SCAN_INTERVAL_MINUTES)
     )
-    
+    group_start = entry.options.get(
+        "group_start", entry.data.get("group_start", DEFAULT_GROUP_START)
+    )
+    group_end = entry.options.get(
+        "group_end", entry.data.get("group_end", DEFAULT_GROUP_END)
+    )
     gateway = HapcanGateway(hass, entry.entry_id, options={
             "host": host,
             "port": port,
-            "diagnostic_scan_interval_minutes": diagnostic_scan_interval_minutes
+            "diagnostic_scan_interval_minutes": diagnostic_scan_interval_minutes,
+            "group_start": group_start,
+            "group_end": group_end,
         })
 
     hass.data.setdefault(DOMAIN, {})
@@ -62,6 +75,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
             sw_version=f"{device.hardware_version}.{device.application_type}.{device.application_version}.{device.firmware_version}",
         )
 
+        if device._entity_registration_dispatched:
+            return
+        device._entity_registration_dispatched = True
+
         # SAFE CREATE ENTITIES AND NOTIFY PLATFORMS
 
         device.create_entities()
@@ -77,6 +94,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     
     return True
+
+
+async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry):
+    """Reload HAPCAN when its options change."""
+    await hass.config_entries.async_reload(entry.entry_id)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):

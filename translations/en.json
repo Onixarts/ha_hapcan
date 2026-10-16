@@ -1,0 +1,7 @@
+{
+  "options": {
+    "progress": {
+      "scan": "Scanning HAPCAN bus"
+    }
+  }
+}
