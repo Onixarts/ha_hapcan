@@ -1,5 +1,40 @@
 {
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to HAPCAN gateway",
+        "data": {
+          "host": "Host",
+          "port": "TCP port"
+        }
+      }
+    }
+  },
   "options": {
+    "step": {
+      "init": {
+        "menu_options": {
+          "edit": "Properties",
+          "scan": "Scan HAPCAN bus"
+        }
+      },
+      "edit": {
+        "title": "Properties",
+        "data": {
+          "host": "Host",
+          "port": "TCP port",
+          "group_start": "First group to scan",
+          "group_end": "Last group to scan",
+          "diagnostic_scan_interval_minutes": "Voltage scan interval (minutes)"
+        }
+      },
+      "scan": {
+        "title": "Scan HAPCAN bus"
+      },
+      "scan_done": {
+        "title": "Scan complete"
+      }
+    },
     "progress": {
       "scan": "Scanning HAPCAN bus"
     }

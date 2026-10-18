@@ -1,5 +1,40 @@
 {
+  "config": {
+    "step": {
+      "user": {
+        "title": "Połącz z bramką HAPCAN",
+        "data": {
+          "host": "Host",
+          "port": "Port TCP"
+        }
+      }
+    }
+  },
   "options": {
+    "step": {
+      "init": {
+        "menu_options": {
+          "edit": "Właściwości",
+          "scan": "Skanuj magistralę HAPCAN"
+        }
+      },
+      "edit": {
+        "title": "Właściwości",
+        "data": {
+          "host": "Host",
+          "port": "Port TCP",
+          "group_start": "Pierwsza skanowana grupa",
+          "group_end": "Ostatnia skanowana grupa",
+          "diagnostic_scan_interval_minutes": "Interwał skanowania napięć (minuty)"
+        }
+      },
+      "scan": {
+        "title": "Skanuj magistralę HAPCAN"
+      },
+      "scan_done": {
+        "title": "Skanowanie zakończone"
+      }
+    },
     "progress": {
       "scan": "Trwa skanowanie magistrali HAPCAN"
     }
