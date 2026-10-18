@@ -87,7 +87,7 @@ class IRDevice(HapcanDevice):
     # NOTIFY ENTITIES
     # -------------------------------------------------------------------------
 
-    def notify_entities(self, address: str, command: str, protocol: str, code_type: str):
+    def notify_entities(self, address: int, command: int, protocol: str, code_type: int):
         try:
             if self._ir_event_entity is None:
                 return
@@ -140,20 +140,18 @@ class IRDevice(HapcanDevice):
             
         # Extract address and command based on code type
         protocol = IR_CODES.get(code_type, "Unknown").strip()
-        code_type_hex = f"{code_type:02x}"
-        
         if code_type in [0x03, 0x04, 0x06, 0x07]:  # Single address + command
-            address = f"{code1:02x}"
-            command = f"{code2:02x}"
+            address = code1
+            command = code2
         elif code_type in [0x05, 0x08]:  # Address MSB, LSB + command
-            address = f"{code1:02x}{code2:02x}"
-            command = f"{code3:02x}"
+            address = (code1 << 8) | code2
+            command = code3
         else:
-            address = f"{code1:02x}"
-            command = f"{code2:02x}_{code3:02x}"
+            address = code1
+            command = (code2 << 8) | code3
         
         # Notify event entity
-        self.notify_entities(address, command, protocol, code_type_hex)
+        self.notify_entities(address, command, protocol, code_type)
 
 
     async def send_ir_code(self, ir_code: str) -> bool:
