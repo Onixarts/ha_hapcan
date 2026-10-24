@@ -28,8 +28,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Set up HAPCAN from a config entry."""
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
 
-    host = entry.data["host"]
-    port = entry.data["port"]
+    host = entry.options.get("host", entry.data.get("host"))
+    port = entry.options.get("port", entry.data.get("port"))
     diagnostic_scan_interval_minutes = entry.options.get(
         "diagnostic_scan_interval_minutes",
         entry.data.get("diagnostic_scan_interval_minutes", DEFAULT_DIAGNOSTIC_SCAN_INTERVAL_MINUTES)
