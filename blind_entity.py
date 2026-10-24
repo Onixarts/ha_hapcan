@@ -12,8 +12,7 @@ class BlindEntity(HapcanEntity, CoverEntity):
     _attr_supported_features = (
         CoverEntityFeature.OPEN |
         CoverEntityFeature.CLOSE |
-        CoverEntityFeature.STOP |
-        CoverEntityFeature.SET_POSITION
+        CoverEntityFeature.STOP
     )
 
     def __init__(self, device, channel):
