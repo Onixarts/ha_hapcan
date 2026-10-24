@@ -356,7 +356,7 @@ class HapcanGateway:
                 await device.request_voltage()
                 await asyncio.sleep(0.02)
             except Exception as e:
-                _LOGGER.error(" Voltage poll failed for device %s", device, e)
+                _LOGGER.error(" Voltage poll failed for device %s: %s", device, e)
 
 #---------------------------------------------------------------------------------------
 # HA DEVICE AND ENTITIES MANAGEMENT
