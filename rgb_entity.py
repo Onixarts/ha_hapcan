@@ -67,21 +67,23 @@ class RgbEntity(HapcanEntity, LightEntity):
 
         _LOGGER.debug("kwargs=%s", kwargs)
 
-        if ATTR_RGB_COLOR in kwargs:
-            r, g, b = kwargs[ATTR_RGB_COLOR]
+        if ATTR_RGB_COLOR in kwargs and kwargs[ATTR_RGB_COLOR] is not None:
+            rgb = kwargs[ATTR_RGB_COLOR]
+            if isinstance(rgb, (tuple, list)) and len(rgb) == 3:
+                r, g, b = rgb
 
-        # if ATTR_BRIGHTNESS in kwargs:
-        #     brightness = kwargs[ATTR_BRIGHTNESS]
-        # else:
+        if r is None or g is None or b is None:
+            last_rgb = self._device._states[0:3]
+            r = last_rgb[0] if last_rgb[0] is not None else 0
+            g = last_rgb[1] if last_rgb[1] is not None else 0
+            b = last_rgb[2] if last_rgb[2] is not None else 0
+
         brightness = self._device._states[RGBChannel.MASTER.value - 1] or 255
 
         if ATTR_TRANSITION in kwargs:
             transition = kwargs.get(ATTR_TRANSITION) or 0
         else:
             transition = 0
-
-        # if r is None and g is None and b is None:
-        #     self._device.set_brightness(brightness)
 
         await self._device.set_rgb(r, g, b, brightness, transition=transition)
 
