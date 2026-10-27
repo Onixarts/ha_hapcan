@@ -96,6 +96,7 @@ class IRDevice(HapcanDevice):
 
             event_type = HapcanEvent.IR_CODE_RECEIVED
             event_data = {
+                "entity_id": self._ir_event_entity.entity_id,
                 "device_id": self.id,
                 "code_type": code_type,
                 "address": address,

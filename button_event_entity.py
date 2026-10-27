@@ -41,14 +41,14 @@ class ButtonEventEntity(HapcanEntity, EventEntity):
 
         _LOGGER.debug("Firing event '%s' for button %s on device %s", press_type, self._channel, self._device )
 
-        self._trigger_event(
-            BUTTON_EVENT,
-            {
-                "device_id": self._device.id,
-                "channel": self._channel,
-                "button": press_type,
-            }
-        )
+        event_data = {
+            "entity_id": self.entity_id,
+            "device_id": self._device.id,
+            "channel": self._channel,
+            "button": press_type,
+        }
+        self._trigger_event(BUTTON_EVENT, event_data)
+        self.hass.bus.async_fire(BUTTON_EVENT, event_data)
         self.async_write_ha_state()
 
 
