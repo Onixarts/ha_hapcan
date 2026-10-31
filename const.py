@@ -3,6 +3,37 @@ DEFAULT_DIAGNOSTIC_SCAN_INTERVAL_MINUTES = 60
 DEFAULT_GROUP_START = 1
 DEFAULT_GROUP_END = 10
 
+try:
+    from homeassistant.components.event import ButtonEventType
+except ImportError:
+    class ButtonEventType:
+        PRESS_START = "press_start"
+        PRESS_END = "press_end"
+        LONG_PRESS_START = "long_press_start"
+        LONG_PRESS_END = "long_press_end"
+
+
+BUTTON_EVENT_TYPES = [
+    ButtonEventType.PRESS_START,
+    ButtonEventType.PRESS_END,
+    ButtonEventType.LONG_PRESS_START,
+    ButtonEventType.LONG_PRESS_END,
+    "held_4s",
+    "open",
+    "closed",
+]
+
+BUTTON_STATE_TO_EVENTS = {
+    0x00: (("open", {}),),
+    0x01: (),
+    0xFF: ((ButtonEventType.PRESS_START, {}), ("closed", {})),
+    0xFC: ((ButtonEventType.PRESS_END, {}),),
+    0xFE: ((ButtonEventType.LONG_PRESS_START, {}),),
+    0xFB: ((ButtonEventType.LONG_PRESS_END, {}),),
+    0xFD: (("held_4s", {}),),
+    0xFA: ((ButtonEventType.LONG_PRESS_END, {"held_4s": True}),),
+}
+
 EVENT_DEVICE_FOUND = "hapcan.device_found"
 EVENT_DEVICE_UPDATED = "hapcan.device_updated"
 EVENT_DEVICE_READY = "hapcan.device_ready"
@@ -29,4 +60,3 @@ APPLICATION_TYPE_OPEN_COLLECTOR_OUTPUT = 0x09
 
 class HapcanEvent:
     IR_CODE_RECEIVED = "hapcan.ir_code_received"
-    BUTTON_EVENT = "hapcan.button_event"

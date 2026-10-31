@@ -6,6 +6,7 @@ Home Assistant custom integration for connecting to a HAPCAN TCP gateway.
 
 - Discovers HAPCAN modules on the bus and creates entities for supported device types.
 - Supports relay, button, blind controller, RGB LED controller, and IR transmitter modules.
+- Exposes HAPCAN button channels as event entities with `press_start`, `press_end`, `long_press_start`, `long_press_end`, `held_4s`, `open`, and `closed` event types.
 - Provides diagnostic entities, including last-seen and voltage sensors where supported.
 - Can periodically poll device voltages and manually scan the bus from the integration options.
 

@@ -2,16 +2,16 @@ import logging
 
 from homeassistant.components.event import EventEntity, EventDeviceClass
 from .hapcan_entity import HapcanEntity
+from .const import BUTTON_EVENT_TYPES
 
 _LOGGER = logging.getLogger(__name__)
-BUTTON_EVENT = "hapcan.button_event"
 
 class ButtonEventEntity(HapcanEntity, EventEntity):
     """HAPCAN physical button represented as an event entity."""
 
     _attr_device_class = EventDeviceClass.BUTTON
     _attr_has_entity_name = True
-    _attr_event_types = [BUTTON_EVENT]
+    _attr_event_types = BUTTON_EVENT_TYPES
 
     def __init__(self, device, channel):
         HapcanEntity.__init__(self, device)
@@ -35,20 +35,23 @@ class ButtonEventEntity(HapcanEntity, EventEntity):
     # EVENT HANDLING
     # ---------------------------------------------------------------------------
 
-    async def async_fire_event(self, press_type: str):
-        """Called by device when a button event occurs."""
+    async def async_fire_events(self, button_events: tuple):
+        """Called by device when one or more events occur for a state."""
 
-
-        _LOGGER.debug("Firing event '%s' for button %s on device %s", press_type, self._channel, self._device )
-
-        event_data = {
+        base_event_data = {
             "entity_id": self.entity_id,
             "device_id": self._device.id,
             "channel": self._channel,
-            "button": press_type,
         }
-        self._trigger_event(BUTTON_EVENT, event_data)
-        self.hass.bus.async_fire(BUTTON_EVENT, event_data)
-        self.async_write_ha_state()
+
+        for event_type, event_data in button_events:
+            _LOGGER.debug(
+                "Firing event '%s' for channel %s on device %s",
+                event_type,
+                self._channel,
+                self._device,
+            )
+            self._trigger_event(event_type, {**base_event_data, **event_data})
+            self.async_write_ha_state()
 
 

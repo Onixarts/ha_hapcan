@@ -5,7 +5,12 @@ from .hapcan_device import HapcanDevice
 from .button_event_entity import ButtonEventEntity
 from .temperature_entity import TemperatureSensorEntity
 from .button_led_entity import ButtonLedSwitchEntity
-from .const import HARDWARE_TYPE_UNIV1, HARDWARE_TYPE_UNIV3, HARDWARE_TYPE_HAPCANUINO
+from .const import (
+    BUTTON_STATE_TO_EVENTS,
+    HARDWARE_TYPE_UNIV1,
+    HARDWARE_TYPE_UNIV3,
+    HARDWARE_TYPE_HAPCANUINO,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -21,18 +26,6 @@ BUTTON_APPLICATION_VERSION = {
     APPLICATION_VERSION_6_CHANNEL_BACK_BOX_TOUCH_BUTTON: "6 CHANNEL BACK BOX TOUCH BUTTON",
     APPLICATION_VERSION_14_CHANNEL_BACK_BOX_BUTTON: "14 CHANNEL BACK BOX BUTTON",
 }
-
-BUTTON_CODE_TO_EVENT = {
-    0x00: "open",
-    0x01: "disabled",
-    0xFF: "closed",
-    0xFE: "closed_held_400ms",
-    0xFD: "closed_held_4s",
-    0xFC: "closed_opened_within_400ms",
-    0xFB: "closed_opened_between_400ms_4s",
-    0xFA: "closed_opened_after_4s",
-    }
-
 
 class ButtonDevice(HapcanDevice):
 
@@ -145,10 +138,18 @@ class ButtonDevice(HapcanDevice):
             #else:
                 #_LOGGER.debug(" led %s is disabled in device %s", channel, self)
 
-        press_type = BUTTON_CODE_TO_EVENT.get(frame[8], None)
+        button_events = BUTTON_STATE_TO_EVENTS.get(frame[8])
+        if button_events is None:
+            _LOGGER.debug(
+                "Ignoring unknown button state code 0x%02X for channel %s on device %s",
+                frame[8],
+                channel,
+                self,
+            )
+            return
 
-        if press_type:
-            self.notify_entities(channel, press_type)
+        if button_events:
+            self.notify_entities(channel, button_events)
 
         
     
@@ -177,14 +178,14 @@ class ButtonDevice(HapcanDevice):
     #  NOTIFY ENTITIES
     # -------------------------------------------------------------------------
 
-    def notify_entities(self, channel, press_type):
+    def notify_entities(self, channel, button_events):
         try:
             button_entity = self.entities["event"][channel - 1]
             hass = self.gateway._hass
 
             hass.loop.call_soon_threadsafe(
                 hass.async_create_task,
-                button_entity.async_fire_event(press_type)
+                button_entity.async_fire_events(button_events)
             )
 
             if self.application_version != APPLICATION_VERSION_8_CHANNEL_DIN_RAIL_BUTTON:
