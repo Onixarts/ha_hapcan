@@ -38,5 +38,80 @@
     "progress": {
       "scan": "Scanning HAPCAN bus"
     }
+  },
+  "config_subentries": {
+    "ir_remote": {
+      "entry_type": "IR remote",
+      "initiate_flow": {
+        "user": "Add IR remote",
+        "reconfigure": "Configure IR remote"
+      },
+      "step": {
+        "user": {
+          "title": "Add IR remote",
+          "data": {
+            "module_id": "IR receiver",
+            "name": "Remote name"
+          }
+        },
+        "learn_identify": {
+          "title": "Identify remote",
+          "description": "Press any button on the remote within 30 seconds."
+        },
+        "learn_button": {
+          "title": "Learn button",
+          "description": "Press a button on the remote within 30 seconds."
+        },
+        "name_button": {
+          "title": "Name button",
+          "description": "Enter a unique event name for command {command} ({protocol}).",
+          "data": {
+            "button": "Button event name"
+          }
+        },
+        "more_buttons": {
+          "title": "Learned buttons: {count}",
+          "description": "Learn another button, or finish to save the remote. Closing this dialog discards unsaved changes.",
+          "menu_options": {
+            "learn_button": "Learn next button",
+            "finish": "Finish and save"
+          }
+        },
+        "reconfigure": {
+          "title": "Configure IR remote",
+          "menu_options": {
+            "edit_buttons": "Edit button names",
+            "learn_more": "Learn another button"
+          }
+        },
+        "edit_buttons": {
+          "title": "Edit button names",
+          "description": "Leave a button name empty to remove it. Renaming a button changes its event type and may break automations."
+        }
+      },
+      "progress": {
+        "learn_identify": "Waiting for a remote button",
+        "learn_button": "Waiting for a button press"
+      },
+      "abort": {
+        "no_ir_module": "No IR receiver is currently available.",
+        "already_configured": "This remote is already configured for this receiver.",
+        "capture_cancelled": "IR learning was cancelled.",
+        "capture_failed": "The IR code could not be captured."
+      },
+      "error": {
+        "capture_timeout": "No code was received. Submit to try again.",
+        "invalid_name": "Enter a remote name.",
+        "invalid_button_name": "Use lowercase letters, numbers, and underscores only.",
+        "button_name_exists": "Each button must have a unique event name."
+      }
+    }
+  },
+  "entity": {
+    "event": {
+      "button_pressed": {
+        "name": "Button pressed"
+      }
+    }
   }
 }

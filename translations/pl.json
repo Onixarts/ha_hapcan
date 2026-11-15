@@ -38,5 +38,80 @@
     "progress": {
       "scan": "Trwa skanowanie magistrali HAPCAN"
     }
+  },
+  "config_subentries": {
+    "ir_remote": {
+      "entry_type": "Pilot IR",
+      "initiate_flow": {
+        "user": "Dodaj pilota IR",
+        "reconfigure": "Konfiguruj pilota IR"
+      },
+      "step": {
+        "user": {
+          "title": "Dodaj pilota IR",
+          "data": {
+            "module_id": "Odbiornik IR",
+            "name": "Nazwa pilota"
+          }
+        },
+        "learn_identify": {
+          "title": "Rozpoznaj pilota",
+          "description": "Naciśnij dowolny przycisk pilota w ciągu 30 sekund."
+        },
+        "learn_button": {
+          "title": "Naucz przycisk",
+          "description": "Naciśnij przycisk pilota w ciągu 30 sekund."
+        },
+        "name_button": {
+          "title": "Nazwij przycisk",
+          "description": "Podaj unikalną nazwę zdarzenia dla komendy {command} ({protocol}).",
+          "data": {
+            "button": "Nazwa zdarzenia przycisku"
+          }
+        },
+        "more_buttons": {
+          "title": "Nauczone przyciski: {count}",
+          "description": "Naucz kolejny przycisk albo zakończ, aby zapisać pilota. Zamknięcie okna odrzuca niezapisane zmiany.",
+          "menu_options": {
+            "learn_button": "Naucz kolejny przycisk",
+            "finish": "Zakończ i zapisz"
+          }
+        },
+        "reconfigure": {
+          "title": "Konfiguruj pilota IR",
+          "menu_options": {
+            "edit_buttons": "Edytuj nazwy przycisków",
+            "learn_more": "Naucz kolejny przycisk"
+          }
+        },
+        "edit_buttons": {
+          "title": "Edytuj nazwy przycisków",
+          "description": "Pusta nazwa usuwa przycisk. Zmiana nazwy zmienia typ zdarzenia i może zepsuć automatyzacje."
+        }
+      },
+      "progress": {
+        "learn_identify": "Oczekiwanie na sygnał pilota",
+        "learn_button": "Oczekiwanie na naciśnięcie przycisku"
+      },
+      "abort": {
+        "no_ir_module": "Odbiornik IR nie jest obecnie dostępny.",
+        "already_configured": "Ten pilot jest już skonfigurowany dla tego odbiornika.",
+        "capture_cancelled": "Uczenie pilota zostało anulowane.",
+        "capture_failed": "Nie udało się przechwycić kodu IR."
+      },
+      "error": {
+        "capture_timeout": "Nie odebrano kodu. Zatwierdź formularz, aby spróbować ponownie.",
+        "invalid_name": "Podaj nazwę pilota.",
+        "invalid_button_name": "Użyj tylko małych liter, cyfr i podkreśleń.",
+        "button_name_exists": "Każdy przycisk musi mieć unikalną nazwę zdarzenia."
+      }
+    }
+  },
+  "entity": {
+    "event": {
+      "button_pressed": {
+        "name": "Naciśnięto przycisk"
+      }
+    }
   }
 }

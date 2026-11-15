@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
@@ -33,6 +34,9 @@ class IRDevice(HapcanDevice):
         # Encje IR
         self._ir_event_entity = None
         self._remote_entity = None
+        self.remotes = {}
+        self._capture_future = None
+        self._capture_match = None
         
         # Obsługiwane sygnały
         self._unsub_303 = async_dispatcher_connect( gateway._hass, "hapcan_frame_303", self._handle_ir_frame_303 )
@@ -88,6 +92,17 @@ class IRDevice(HapcanDevice):
     # -------------------------------------------------------------------------
 
     def notify_entities(self, address: int, command: int, protocol: str, code_type: int):
+        capture_future = self._capture_future
+        if capture_future is not None and not capture_future.done():
+            if self._capture_match is None or self._capture_match == (code_type, address):
+                capture_future.set_result({
+                    "code_type": code_type,
+                    "address": address,
+                    "command": command,
+                    "protocol": protocol,
+                })
+            return
+
         try:
             if self._ir_event_entity is None:
                 return
@@ -110,8 +125,39 @@ class IRDevice(HapcanDevice):
 
             hass.bus.async_fire(event_type, event_data)
 
+            remote = self.remotes.get((code_type, address))
+            if remote is not None:
+                remote.handle_command(command, protocol)
+
         except Exception as e:
             _LOGGER.error("Error notifying IR event: %s", e)
+
+    async def async_capture_code(self, timeout: float, match: tuple | None = None):
+        """Capture the next IR frame, optionally restricted to a protocol and address."""
+        if self._capture_future is not None:
+            raise RuntimeError("An IR capture is already in progress")
+
+        future = asyncio.get_running_loop().create_future()
+        self._capture_future = future
+        self._capture_match = match
+        try:
+            return await asyncio.wait_for(future, timeout)
+        except asyncio.TimeoutError:
+            return None
+        finally:
+            if self._capture_future is future:
+                self._capture_future = None
+                self._capture_match = None
+            if not future.done():
+                future.cancel()
+
+    def register_remote(self, entity):
+        self.remotes[(entity.code_type, entity.address)] = entity
+
+    def unregister_remote(self, entity):
+        key = (entity.code_type, entity.address)
+        if self.remotes.get(key) is entity:
+            self.remotes.pop(key)
 
     # -------------------------------------------------------------------------
     # FRAME HANDLING

@@ -32,6 +32,26 @@ After restarting, go to **Settings > Devices & services > Add integration**, sea
 
 Use the integration's options to change the connection details, configure the diagnostic voltage scan interval, or start a bus scan. An interval of `0` disables periodic voltage polling.
 
+## IR remotes
+
+For each discovered **INFRARED RECEIVER & TRANSMITTER** module, use the HAPCAN integration's **Add IR remote** action. Name the remote, press a button to identify it, then learn and name each button. The remote appears as its own device linked to the receiving module. Existing remotes can be renamed, have button names edited, or learn additional buttons.
+
+Each remote exposes one event entity. Its `event_type` is the learned button name, so renaming a button can require updating automations that use it. For example:
+
+```yaml
+automation:
+	- alias: IR remote volume up
+		triggers:
+			- trigger: state
+				entity_id: event.ir_remote_tv
+				attribute: event_type
+				to: vol_up
+		actions:
+			- action: media_player.volume_up
+				target:
+					entity_id: media_player.living_room_tv
+```
+
 ## Troubleshooting
 
 - Confirm that Home Assistant can reach the gateway at the configured host and TCP port.

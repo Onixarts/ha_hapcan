@@ -18,6 +18,7 @@ from .const import (
     DEFAULT_GROUP_START,
     DEFAULT_GROUP_END,
 )
+from .event import async_sync_ir_remotes
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -26,7 +27,7 @@ PLATFORMS = ["switch", "sensor", "event", "cover", "light", "number", "remote"]
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Set up HAPCAN from a config entry."""
-    entry.async_on_unload(entry.add_update_listener(async_reload_entry))
+    entry.async_on_unload(entry.add_update_listener(async_update_listener))
 
     host = entry.options.get("host", entry.data.get("host"))
     port = entry.options.get("port", entry.data.get("port"))
@@ -40,6 +41,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     group_end = entry.options.get(
         "group_end", entry.data.get("group_end", DEFAULT_GROUP_END)
     )
+    connection_config = {
+        "host": host,
+        "port": port,
+        "group_start": group_start,
+        "group_end": group_end,
+        "diagnostic_scan_interval_minutes": diagnostic_scan_interval_minutes,
+    }
     gateway = HapcanGateway(hass, entry.entry_id, options={
             "host": host,
             "port": port,
@@ -53,6 +61,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     hass.data[DOMAIN][entry.entry_id] = {
         "gateway": gateway,
         "devices": {},
+        "ir_remotes": {},
+        "connection_config": connection_config,
     }
     
 
@@ -99,6 +109,25 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Reload HAPCAN when its options change."""
     await hass.config_entries.async_reload(entry.entry_id)
+
+
+async def async_update_listener(hass: HomeAssistant, entry: ConfigEntry):
+    """Reload the gateway only when its connection or scan options change."""
+    previous = hass.data.get(DOMAIN, {}).get(entry.entry_id, {}).get("connection_config", {})
+    current = {
+        key: entry.options.get(key, entry.data.get(key, default))
+        for key, default in (
+            ("host", None),
+            ("port", None),
+            ("group_start", DEFAULT_GROUP_START),
+            ("group_end", DEFAULT_GROUP_END),
+            ("diagnostic_scan_interval_minutes", DEFAULT_DIAGNOSTIC_SCAN_INTERVAL_MINUTES),
+        )
+    }
+    if current != previous:
+        await async_reload_entry(hass, entry)
+        return
+    await async_sync_ir_remotes(hass, entry)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):

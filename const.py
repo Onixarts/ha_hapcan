@@ -1,4 +1,27 @@
 DOMAIN = "hapcan"
+SUBENTRY_TYPE_IR_REMOTE = "ir_remote"
+CONF_MODULE_ID = "module_id"
+CONF_CODE_TYPE = "code_type"
+CONF_ADDRESS = "address"
+CONF_BUTTONS = "buttons"
+
+
+def get_ir_device_by_module_id(devices, module_id):
+    """Find an IR device using its canonical module ID."""
+    if not isinstance(module_id, str):
+        return None
+
+    device = devices.get(module_id)
+    if device is not None:
+        return device
+
+    try:
+        node, group = (int(part) for part in module_id.split("_", 1))
+    except (TypeError, ValueError):
+        return None
+    return devices.get((node, group))
+
+
 DEFAULT_DIAGNOSTIC_SCAN_INTERVAL_MINUTES = 60
 DEFAULT_GROUP_START = 1
 DEFAULT_GROUP_END = 10
